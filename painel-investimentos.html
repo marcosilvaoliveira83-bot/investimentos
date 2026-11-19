@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Investimentos e Bitcoin</title>
+<meta name="theme-color" content="#020617">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Investimentos">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .card{background:#0f172a;border:1px solid #1e293b;border-radius:1rem;padding:1.25rem}
+  .inp{width:100%;background:#020617;border:1px solid #1e293b;border-radius:.6rem;padding:.5rem .75rem;color:#f1f5f9;min-width:0}
+  .inp:focus-visible,.btn:focus-visible{outline:2px solid #34d399;outline-offset:1px}
+  .lbl{display:block;font-size:.75rem;color:#94a3b8;margin-bottom:.25rem}
+  .btn{background:#10b981;color:#022c22;font-weight:600;border-radius:.6rem;padding:.55rem 1rem}
+  .btn:hover{background:#34d399}
+  .chip{font-size:.75rem;padding:.25rem .7rem;border-radius:999px;border:1px solid #334155;color:#cbd5e1}
+  .chip.on{background:#f59e0b;color:#1c1100;border-color:#f59e0b}
+  h2{font-weight:600;font-size:1.05rem;margin-bottom:.9rem}
+  /* Modo claro */
+  html.light body,html.light .bg-slate-950{background:#f1f5f9;color:#0f172a}
+  html.light .bg-slate-900{background:#fff}
+  html.light .card{background:#fff;border-color:#e2e8f0}
+  html.light .inp{background:#f8fafc;border-color:#cbd5e1;color:#0f172a}
+  html.light .bg-slate-800{background:#e2e8f0}
+  html.light .border-slate-800,html.light .divide-slate-800>*{border-color:#e2e8f0}
+  html.light .text-slate-100{color:#0f172a}
+  html.light .text-slate-300,html.light .text-slate-400{color:#475569}
+  html.light .text-slate-500,html.light .lbl{color:#64748b}
+  html.light .chip{border-color:#cbd5e1;color:#475569}
+  html.light .chip.on{color:#1c1100;border-color:#f59e0b}
+  html.light .text-emerald-400{color:#047857}
+  html.light .text-amber-400{color:#b45309}
+  html.light .text-sky-400{color:#0369a1}
+  html.light .text-rose-400{color:#be123c}
+</style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+<header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
+    <div>
+      <h1 class="text-xl font-bold tracking-tight">Meus Investimentos e Bitcoin</h1>
+      <p class="text-xs text-slate-400">Caixinhas, simulador com IR regressivo e DCA</p>
+    </div>
+    <div class="flex items-center gap-3 text-sm bg-slate-950 px-4 py-2 rounded-xl border border-slate-800">
+      <span id="live-date" class="text-slate-300"></span>
+      <span class="text-slate-700">|</span>
+      <span id="live-clock" class="text-emerald-400 font-mono"></span>
+      <button id="theme-btn" class="chip ml-1" onclick="toggleTheme()" aria-label="Alternar tema claro ou escuro"></button>
+    </div>
+  </div>
+</header>
+
+<section class="max-w-7xl mx-auto px-4 pt-5">
+  <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
+    <div class="card !p-3"><span class="lbl">CDI</span><b id="m-cdi" class="text-lg text-emerald-400">—</b></div>
+    <div class="card !p-3"><span class="lbl">Selic meta</span><b id="m-selic" class="text-lg text-emerald-400">—</b></div>
+    <div class="card !p-3"><span class="lbl">Dólar</span><b id="m-usd" class="text-lg text-sky-400">—</b></div>
+    <div class="card !p-3"><span class="lbl">Bitcoin (R$)</span><b id="m-btc" class="text-lg text-amber-400">—</b><span id="m-chg" class="block text-xs"></span></div>
+    <div class="card !p-3 col-span-2 md:col-span-1"><span class="lbl">Patrimônio total</span><b id="m-total" class="text-lg">—</b></div>
+  </div>
+  <p id="status" class="text-xs text-slate-500 mt-2 text-right" aria-live="polite"></p>
+</section>
+
+<main class="max-w-7xl mx-auto px-4 py-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- Coluna esquerda -->
+  <div class="space-y-6">
+    <div class="card">
+      <h2>Caixinhas</h2>
+      <div id="boxes" class="space-y-3"></div>
+      <button class="btn mt-4 w-full" onclick="addBox()">Adicionar caixinha</button>
+    </div>
+
+    <div class="card">
+      <h2>Simulador de aportes</h2>
+      <div class="grid grid-cols-3 gap-2">
+        <div><label class="lbl" for="s-init">Saldo inicial</label><input id="s-init" type="number" min="0" value="0" class="inp"></div>
+        <div><label class="lbl" for="s-mon">Aporte mensal</label><input id="s-mon" type="number" min="0" value="500" class="inp"></div>
+        <div><label class="lbl" for="s-mth">Meses</label><input id="s-mth" type="number" min="1" max="600" value="12" class="inp"></div>
+      </div>
+      <button class="btn mt-3 w-full" onclick="simulate()">Comparar caixinhas</button>
+      <div id="sim" class="mt-4 text-sm space-y-2"></div>
+    </div>
+  </div>
+
+  <!-- Coluna direita -->
+  <div class="lg:col-span-2 space-y-6">
+    <div class="card">
+      <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+        <h2 class="!mb-0">Bitcoin em reais</h2>
+        <div class="flex gap-2" role="group" aria-label="Período do gráfico">
+          <button class="chip on" data-r="1">24h</button>
+          <button class="chip" data-r="7">7d</button>
+          <button class="chip" data-r="30">30d</button>
+          <button class="chip" data-r="365">1 ano</button>
+        </div>
+      </div>
+      <div class="h-[280px]"><canvas id="btcChart" role="img" aria-label="Gráfico do preço do Bitcoin"></canvas></div>
+    </div>
+
+    <div class="grid md:grid-cols-5 gap-6">
+      <div class="card md:col-span-3">
+        <h2>Compras de Bitcoin (DCA)</h2>
+        <div class="grid grid-cols-3 gap-2">
+          <div><label class="lbl" for="d-date">Data</label><input id="d-date" type="date" class="inp"></div>
+          <div><label class="lbl" for="d-brl">Valor (R$)</label><input id="d-brl" type="number" min="0" step="0.01" class="inp"></div>
+          <div><label class="lbl" for="d-price">Preço do BTC</label><input id="d-price" type="number" min="0" step="0.01" class="inp" placeholder="preço atual"></div>
+        </div>
+        <button class="btn mt-3 w-full" onclick="addDca()">Registrar compra</button>
+        <div id="dca-sum" class="grid grid-cols-2 gap-2 mt-4 text-sm"></div>
+        <div id="dca-list" class="mt-3 max-h-48 overflow-y-auto text-sm divide-y divide-slate-800"></div>
+      </div>
+      <div class="card md:col-span-2">
+        <h2>Distribuição</h2>
+        <div class="h-[220px]"><canvas id="pie" role="img" aria-label="Distribuição do patrimônio"></canvas></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="max-w-7xl mx-auto px-4 pb-8 text-xs text-slate-500">
+  Simulações são estimativas (CDI projetado constante, IR regressivo por aporte) e não são recomendação de investimento.
+  <button class="underline ml-2" onclick="exportData()">Exportar dados</button>
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const brl = new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'});
+const num = (n, d=2) => n.toLocaleString('pt-BR', {minimumFractionDigits:d, maximumFractionDigits:d});
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const read = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) || def } catch(e) { return def } };
+const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch(e) {} };
+
+let S = read('inv-v2', {boxes:[{id:1,name:'Mercado Pago',balance:0,pct:120},{id:2,name:'Nubank',balance:0,pct:115}], dca:[]});
+let M = read('inv-mkt', {cdi:13.65, selic:13.75, usd:5.79, btc:null, chg:null});
+let lastUpdate = null, range = 1;
+const save = () => write('inv-v2', S);
+const COLORS = ['#10b981','#6366f1','#0ea5e9','#ec4899','#14b8a6','#a855f7','#f43f5e','#84cc16'];
+
+/* Relógio */
+function tick() {
+  const n = new Date();
+  $('live-clock').textContent = n.toLocaleTimeString('pt-BR');
+  $('live-date').textContent = n.toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit', month:'short', year:'numeric'});
+  if (lastUpdate) $('status').textContent = 'Cotações atualizadas há ' + Math.round((Date.now()-lastUpdate)/1000) + 's';
+}
+setInterval(tick, 1000); tick();
+
+/* IR regressivo (renda fixa): por dias corridos */
+const irRate = d => d <= 180 ? .225 : d <= 360 ? .20 : d <= 720 ? .175 : .15;
+const mRate = pct => Math.pow(1 + (M.cdi/100) * (pct/100), 1/12) - 1;
+
+/* Mercado */
+async function getJson(url) { const r = await fetch(url); if (!r.ok) throw new Error(r.status); return r.json(); }
+async function loadMarket() {
+  const jobs = [
+    getJson('https://api.bcb.gov.br/dados/serie/bcdata.sgs.4389/dados/ultimos/1?formato=json').then(d => M.cdi = parseFloat(d[0].valor)),
+    getJson('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json').then(d => M.selic = parseFloat(d[0].valor)),
+    getJson('https://economia.awesomeapi.com.br/json/last/USD-BRL').then(d => M.usd = parseFloat(d.USDBRL.bid)),
+    getJson('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=brl&include_24hr_change=true').then(d => { M.btc = d.bitcoin.brl; M.chg = d.bitcoin.brl_24h_change; })
+  ];
+  const res = await Promise.allSettled(jobs);
+  if (res.some(r => r.status === 'fulfilled')) { lastUpdate = Date.now(); write('inv-mkt', M); }
+  if (res.some(r => r.status === 'rejected')) $('status').textContent = 'Algumas cotações falharam; usando o último valor salvo.';
+  renderMarket(); renderAll();
+}
+function renderMarket() {
+  $('m-cdi').textContent = num(M.cdi) + '% a.a.';
+  $('m-selic').textContent = num(M.selic) + '% a.a.';
+  $('m-usd').textContent = brl.format(M.usd);
+  $('m-btc').textContent = M.btc ? brl.format(M.btc) : '—';
+  const c = $('m-chg');
+  if (M.chg != null) { c.textContent = (M.chg >= 0 ? '+' : '') + num(M.chg) + '% em 24h'; c.className = 'block text-xs ' + (M.chg >= 0 ? 'text-emerald-400' : 'text-rose-400'); }
+}
+
+/* Gráfico BTC */
+Chart.defaults.color = '#94a3b8';
+const btcChart = new Chart($('btcChart'), {
+  type:'line',
+  data:{labels:[], datasets:[{data:[], borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.1)', borderWidth:2, fill:true, tension:.25, pointRadius:0}]},
+  options:{responsive:true, maintainAspectRatio:false, interaction:{intersect:false, mode:'index'},
+    plugins:{legend:{display:false}, tooltip:{callbacks:{label:c => brl.format(c.parsed.y)}}},
+    scales:{x:{grid:{color:'#1e293b'}, ticks:{maxTicksLimit:6}}, y:{grid:{color:'#1e293b'}, ticks:{callback:v => brl.format(v)}}}}
+});
+async function loadHistory() {
+  try {
+    const d = await getJson(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=brl&days=${range}`);
+    const step = Math.max(1, Math.floor(d.prices.length / 120));
+    const pts = d.prices.filter((_, i) => i % step === 0);
+    btcChart.data.labels = pts.map(p => { const t = new Date(p[0]); return range === 1 ? t.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : t.toLocaleDateString('pt-BR', {day:'2-digit', month:'short'}); });
+    btcChart.data.datasets[0].data = pts.map(p => p[1]);
+    btcChart.update();
+  } catch(e) { $('status').textContent = 'Não foi possível carregar o histórico do Bitcoin (limite da API ou sem conexão).'; }
+}
+document.querySelectorAll('.chip').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); range = +b.dataset.r; loadHistory();
+});
+
+/* Caixinhas */
+function renderBoxes() {
+  const total = S.boxes.reduce((a, b) => a + b.balance, 0) || 1;
+  $('boxes').innerHTML = S.boxes.map((b, i) => `
+    <div class="bg-slate-950 border border-slate-800 rounded-xl p-3">
+      <div class="flex gap-2 mb-2">
+        <input class="inp" aria-label="Nome" value="${esc(b.name)}" onchange="upd(${b.id},'name',this.value)">
+        <button class="text-slate-500 hover:text-rose-400 px-2" aria-label="Remover ${esc(b.name)}" onclick="delBox(${b.id})">✕</button>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="lbl">Saldo (R$)</label><input class="inp" type="number" min="0" step="0.01" value="${b.balance}" onchange="upd(${b.id},'balance',+this.value||0)"></div>
+        <div><label class="lbl">% do CDI</label><input class="inp" type="number" min="0" step="0.5" value="${b.pct}" onchange="upd(${b.id},'pct',+this.value||0)"></div>
+      </div>
+      <div class="flex justify-between text-xs text-slate-400 mt-2"><span>${num(b.balance/total*100,1)}% do total em caixinhas</span><span>≈ ${brl.format(b.balance * mRate(b.pct))}/mês bruto</span></div>
+      <div class="w-full bg-slate-800 h-1.5 rounded-full mt-1 overflow-hidden"><div class="h-full" style="width:${b.balance/total*100}%;background:${COLORS[i % COLORS.length]}"></div></div>
+    </div>`).join('') || '<p class="text-sm text-slate-400">Nenhuma caixinha. Adicione a primeira.</p>';
+}
+function upd(id, k, v) { const b = S.boxes.find(x => x.id === id); if (b) b[k] = v; save(); renderAll(); }
+function delBox(id) { S.boxes = S.boxes.filter(b => b.id !== id); save(); renderAll(); }
+function addBox() { S.boxes.push({id:Date.now(), name:'Nova caixinha', balance:0, pct:100}); save(); renderAll(); }
+
+/* Simulador: IR calculado por aporte, conforme o tempo de cada um */
+function project(pct, init, mon, months) {
+  const r = mRate(pct); let gross = 0, tax = 0;
+  const g0 = init * (Math.pow(1+r, months) - 1);
+  gross += g0; tax += g0 * irRate(months * 30);
+  for (let i = 0; i < months; i++) {
+    const held = months - i, g = mon * (Math.pow(1+r, held) - 1);
+    gross += g; tax += g * irRate(held * 30);
+  }
+  const invested = init + mon * months;
+  return {invested, gross, tax, net: invested + gross - tax};
+}
+function simulate() {
+  const init = +$('s-init').value || 0, mon = +$('s-mon').value || 0, months = Math.max(1, parseInt($('s-mth').value) || 12);
+  if (!S.boxes.length) { $('sim').innerHTML = '<p class="text-slate-400">Adicione uma caixinha para simular.</p>'; return; }
+  const rows = S.boxes.map(b => ({b, ...project(b.pct, init, mon, months)})).sort((a, c) => c.net - a.net);
+  $('sim').innerHTML = `<p class="text-slate-400">Investido: ${brl.format(rows[0].invested)} em ${months} meses (CDI de ${num(M.cdi)}% a.a.)</p>` +
+    rows.map((r, i) => `<div class="bg-slate-950 border ${i===0?'border-emerald-500/50':'border-slate-800'} rounded-xl p-3">
+      <div class="flex justify-between font-medium"><span>${esc(r.b.name)} (${r.b.pct}% CDI)</span>${i===0?'<span class="text-emerald-400 text-xs">melhor</span>':''}</div>
+      <div class="flex justify-between text-slate-400"><span>Rendimento bruto</span><span>${brl.format(r.gross)}</span></div>
+      <div class="flex justify-between text-slate-400"><span>IR</span><span class="text-rose-400">- ${brl.format(r.tax)}</span></div>
+      <div class="flex justify-between font-bold pt-1 border-t border-slate-800 mt-1"><span>Total líquido</span><span class="text-emerald-400">${brl.format(r.net)}</span></div></div>`).join('');
+}
+
+/* DCA */
+function addDca() {
+  const brlV = +$('d-brl').value, price = +$('d-price').value || M.btc, date = $('d-date').value;
+  if (!(brlV > 0) || !price || !date) { $('status').textContent = 'Preencha data e valor. Sem o preço, usamos a cotação atual se ela estiver carregada.'; return; }
+  S.dca.push({id:Date.now(), date, brl:brlV, price}); save();
+  $('d-brl').value = ''; $('d-price').value = ''; renderAll();
+}
+function delDca(id) { S.dca = S.dca.filter(x => x.id !== id); save(); renderAll(); }
+function dcaStats() {
+  const inv = S.dca.reduce((a, x) => a + x.brl, 0), btc = S.dca.reduce((a, x) => a + x.brl / x.price, 0);
+  const val = M.btc ? btc * M.btc : 0;
+  return {inv, btc, avg: btc ? inv / btc : 0, val, pl: val - inv, plp: inv ? (val - inv) / inv * 100 : 0};
+}
+function renderDca() {
+  const s = dcaStats(), cls = s.pl >= 0 ? 'text-emerald-400' : 'text-rose-400';
+  const cell = (l, v, c='') => `<div class="bg-slate-950 border border-slate-800 rounded-xl p-2"><span class="lbl !mb-0">${l}</span><b class="${c}">${v}</b></div>`;
+  $('dca-sum').innerHTML = cell('Investido', brl.format(s.inv)) + cell('Quantidade', num(s.btc, 8) + ' BTC') +
+    cell('Preço médio', s.avg ? brl.format(s.avg) : '—') + cell('Resultado', M.btc && s.inv ? (s.pl >= 0 ? '+' : '') + brl.format(s.pl) + ' (' + num(s.plp, 1) + '%)' : '—', cls) +
+    cell('Em sats', Math.round(s.btc * 1e8).toLocaleString('pt-BR'));
+  $('dca-list').innerHTML = S.dca.slice().sort((a, b) => b.date.localeCompare(a.date)).map(x => `
+    <div class="flex justify-between items-center py-2 gap-2">
+      <span class="text-slate-400">${x.date.split('-').reverse().join('/')}</span>
+      <span>${brl.format(x.brl)} a ${brl.format(x.price)}</span>
+      <button class="text-slate-500 hover:text-rose-400" aria-label="Remover compra" onclick="delDca(${x.id})">✕</button>
+    </div>`).join('') || '<p class="py-2 text-slate-400">Nenhuma compra registrada. Adicione a primeira acima.</p>';
+}
+
+/* Distribuição e total */
+const pie = new Chart($('pie'), {type:'doughnut', data:{labels:[], datasets:[{data:[], backgroundColor:[], borderColor:'#0f172a'}]},
+  options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{boxWidth:10, font:{size:11}}}, tooltip:{callbacks:{label:c => c.label + ': ' + brl.format(c.parsed)}}}}});
+function renderPie() {
+  const s = dcaStats(), labels = S.boxes.map(b => b.name), data = S.boxes.map(b => b.balance);
+  const cols = S.boxes.map((_, i) => COLORS[i % COLORS.length]);
+  if (s.val > 0) { labels.push('Bitcoin'); data.push(s.val); cols.push('#f59e0b'); }
+  pie.data.labels = labels; pie.data.datasets[0].data = data; pie.data.datasets[0].backgroundColor = cols; pie.update();
+  $('m-total').textContent = brl.format(data.reduce((a, b) => a + b, 0));
+}
+
+function exportData() {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(S, null, 2)], {type:'application/json'}));
+  a.download = 'meus-investimentos.json'; a.click();
+}
+function renderAll() { renderBoxes(); renderDca(); renderPie(); }
+
+/* Tema claro/escuro */
+function applyTheme(t) {
+  const l = t === 'light', txt = l ? '#475569' : '#94a3b8', grid = l ? '#e2e8f0' : '#1e293b';
+  document.documentElement.classList.toggle('light', l);
+  Chart.defaults.color = txt;
+  ['x','y'].forEach(a => { btcChart.options.scales[a].grid.color = grid; btcChart.options.scales[a].ticks.color = txt; });
+  pie.options.plugins.legend.labels.color = txt;
+  pie.data.datasets[0].borderColor = l ? '#fff' : '#0f172a';
+  btcChart.update(); pie.update();
+  $('theme-btn').textContent = l ? 'Modo escuro' : 'Modo claro';
+  document.querySelector('meta[name=theme-color]').content = l ? '#f1f5f9' : '#020617';
+  write('inv-theme', t);
+}
+function toggleTheme() { applyTheme(document.documentElement.classList.contains('light') ? 'dark' : 'light'); }
+applyTheme(read('inv-theme', matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
+
+/* PWA: manifesto embutido + service worker (só funciona hospedado em HTTPS) */
+try {
+  const icon = 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='#020617'/><text x='50' y='70' font-size='58' text-anchor='middle' fill='#f59e0b'>₿</text></svg>");
+  const mf = {name:'Painel de Investimentos', short_name:'Investimentos', display:'standalone', background_color:'#020617', theme_color:'#020617', start_url:location.href, icons:[{src:icon, sizes:'any', type:'image/svg+xml'}]};
+  const ml = document.createElement('link'); ml.rel = 'manifest';
+  ml.href = URL.createObjectURL(new Blob([JSON.stringify(mf)], {type:'application/manifest+json'}));
+  document.head.appendChild(ml);
+  const ai = document.createElement('link'); ai.rel = 'apple-touch-icon'; ai.href = icon; document.head.appendChild(ai);
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+} catch(e) {}
+
+$('d-date').value = new Date().toISOString().slice(0, 10);
+renderMarket(); renderAll(); simulate();
+loadMarket(); loadHistory();
+setInterval(loadMarket, 60000);
+</script>
+</body>
+</html>
