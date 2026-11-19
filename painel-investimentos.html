@@ -198,8 +198,8 @@ async function loadHistory() {
     btcChart.update();
   } catch(e) { $('status').textContent = 'Não foi possível carregar o histórico do Bitcoin (limite da API ou sem conexão).'; }
 }
-document.querySelectorAll('.chip').forEach(b => b.onclick = () => {
-  document.querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+document.querySelectorAll('.chip[data-r]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.chip[data-r]').forEach(x => x.classList.remove('on'));
   b.classList.add('on'); range = +b.dataset.r; loadHistory();
 });
 
