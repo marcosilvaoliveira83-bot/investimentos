@@ -12,7 +12,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-  .card{background:#0f172a;border:1px solid #1e293b;border-radius:1rem;padding:1.25rem}
+  .card{background:rgba(15,23,42,.86);backdrop-filter:blur(6px);border:1px solid #1e293b;border-radius:1rem;padding:1.25rem}
   .inp{width:100%;background:#020617;border:1px solid #1e293b;border-radius:.6rem;padding:.5rem .75rem;color:#f1f5f9;min-width:0}
   .inp:focus-visible,.btn:focus-visible{outline:2px solid #34d399;outline-offset:1px}
   .lbl{display:block;font-size:.75rem;color:#94a3b8;margin-bottom:.25rem}
@@ -21,10 +21,18 @@
   .chip{font-size:.75rem;padding:.25rem .7rem;border-radius:999px;border:1px solid #334155;color:#cbd5e1}
   .chip.on{background:#f59e0b;color:#1c1100;border-color:#f59e0b}
   h2{font-weight:600;font-size:1.05rem;margin-bottom:.9rem}
+  /* Fundo temático, setas de recolher */
+  :root{--grad:linear-gradient(135deg,#020617 0%,#04302b 50%,#0a1535 100%)}
+  html.light{--grad:linear-gradient(135deg,#ecfdf5 0%,#eff6ff 50%,#fff7ed 100%)}
+  body{background:var(--bgimg,none) center bottom/cover no-repeat fixed,var(--grad) fixed}
+  .chev{font-size:.85rem;color:#94a3b8;padding:0 .4rem;line-height:1}
+  h2.cap{display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+  .card.collapsed h2{margin-bottom:0}
   /* Modo claro */
-  html.light body,html.light .bg-slate-950{background:#f1f5f9;color:#0f172a}
+  html.light body{color:#0f172a}
+  html.light .bg-slate-950{background:#f1f5f9;color:#0f172a}
   html.light .bg-slate-900{background:#fff}
-  html.light .card{background:#fff;border-color:#e2e8f0}
+  html.light .card{background:rgba(255,255,255,.88);border-color:#e2e8f0}
   html.light .inp{background:#f8fafc;border-color:#cbd5e1;color:#0f172a}
   html.light .bg-slate-800{background:#e2e8f0}
   html.light .border-slate-800,html.light .divide-slate-800>*{border-color:#e2e8f0}
@@ -39,7 +47,7 @@
   html.light .text-rose-400{color:#be123c}
 </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
+<body class="text-slate-100 min-h-screen">
 
 <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
   <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
@@ -57,13 +65,15 @@
 </header>
 
 <section class="max-w-7xl mx-auto px-4 pt-5">
-  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-center">
+  <div id="profit-flag" class="hidden" role="status"></div>
+  <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 text-center">
     <div class="card !p-3"><span class="lbl">CDI</span><b id="m-cdi" class="text-lg text-emerald-400">—</b></div>
     <div class="card !p-3"><span class="lbl">Selic meta</span><b id="m-selic" class="text-lg text-emerald-400">—</b></div>
     <div class="card !p-3"><span class="lbl">IPCA (12 meses)</span><b id="m-ipca" class="text-lg text-rose-400">—</b><span id="m-ipca-ref" class="block text-xs text-slate-500"></span></div>
+    <div class="card !p-3"><span class="lbl">IGP-M aluguel (12m)</span><b id="m-igpm" class="text-lg text-amber-400">—</b><span id="m-igpm-ref" class="block text-xs text-slate-500"></span></div>
     <div class="card !p-3"><span class="lbl">Dólar</span><b id="m-usd" class="text-lg text-sky-400">—</b></div>
     <div class="card !p-3"><span class="lbl">Bitcoin (R$)</span><b id="m-btc" class="text-lg text-amber-400">—</b><span id="m-chg" class="block text-xs"></span></div>
-    <div class="card !p-3"><span class="lbl">Patrimônio total</span><b id="m-total" class="text-lg">—</b><span id="m-gain" class="block text-xs"></span></div>
+    <div class="card !p-3 col-span-2 md:col-span-1"><span class="lbl">Patrimônio total</span><b id="m-total" class="text-lg">—</b><span id="m-gain" class="block text-xs"></span></div>
   </div>
   <p id="status" class="text-xs text-slate-500 mt-2 text-right" aria-live="polite"></p>
 </section>
@@ -99,16 +109,17 @@
     <div class="card">
       <h2>Simulador de aportes</h2>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
-        <div><label class="lbl" for="s-mon">Aporte mensal (R$)</label><input id="s-mon" type="number" min="0" value="500" class="inp"></div>
-        <div><label class="lbl" for="s-mth">Prazo (meses)</label><input id="s-mth" type="number" min="1" max="600" value="12" class="inp"></div>
-        <button class="btn col-span-2" onclick="simulate()">Simular a partir do saldo atual</button>
+        <div><label class="lbl" for="s-mon">Aporte mensal (R$)</label><input id="s-mon" type="number" min="0" value="500" class="inp" onchange="simulate()"></div>
+        <div><label class="lbl" for="s-mth">Prazo (meses)</label><input id="s-mth" type="number" min="1" max="600" value="12" class="inp" onchange="simulate()"></div>
+        <button class="btn" onclick="simulate()">Simular</button>
+        <button class="chip !py-2.5" onclick="clearSim()">Limpar</button>
       </div>
       <div id="sim" class="mt-4 text-sm grid md:grid-cols-2 gap-3"></div>
     </div>
   </div>
     <div class="lg:col-span-3 grid md:grid-cols-3 gap-6">
       <div class="card md:col-span-2">
-        <h2>Compras de Bitcoin (DCA)</h2>
+        <h2><span>Compras de Bitcoin (DCA) <span id="btc-flag"></span></span></h2>
         <div class="grid grid-cols-3 gap-2">
           <div><label class="lbl" for="d-date">Data</label><input id="d-date" type="date" class="inp"></div>
           <div><label class="lbl" for="d-brl">Valor (R$)</label><input id="d-brl" type="number" min="0" step="0.01" class="inp"></div>
@@ -117,6 +128,7 @@
         <button class="btn mt-3 w-full" onclick="addDca()">Registrar compra</button>
         <div id="dca-sum" class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4 text-sm"></div>
         <div id="dca-list" class="mt-3 max-h-48 overflow-y-auto text-sm divide-y divide-slate-800"></div>
+        <button class="text-xs text-slate-500 hover:text-rose-400 mt-2 underline" onclick="clearDca()">Apagar todas as compras</button>
       </div>
       <div class="md:col-span-1 space-y-6">
         <div class="card">
@@ -164,6 +176,10 @@ S.btcWhere = S.btcWhere || 'br';
 S.boxes.forEach(b => { b.deps = b.deps || []; if (b.limit === undefined) { b.limit = /mercado/i.test(b.name) ? 10000 : /nubank/i.test(b.name) ? 5000 : 0; b.pct2 = 100; } if (b.balance > 0) b.deps.push({id:Date.now() + b.id, date:today(), amount:b.balance}); delete b.balance; });
 const openBoxes = new Set(S.boxes.map(b => b.id));
 let CDIH = read('inv-cdi', {});
+let UI = read('inv-ui', {});
+UI.sim = UI.sim || {mon:500, months:12}; UI.collapsed = UI.collapsed || {};
+const saveUI = () => write('inv-ui', UI);
+const FLAG = '<span class="inline-flex items-center gap-1 text-xs text-emerald-400 font-normal ml-2 whitespace-nowrap"><span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>lucro</span>';
 let M = read('inv-mkt', {cdi:13.65, selic:13.75, usd:5.79, btc:null, chg:null});
 let lastUpdate = null, range = 1;
 const save = () => write('inv-v2', S);
@@ -189,6 +205,7 @@ async function loadMarket() {
     getJson('https://api.bcb.gov.br/dados/serie/bcdata.sgs.4389/dados/ultimos/1?formato=json').then(d => M.cdi = parseFloat(d[0].valor)),
     getJson('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json').then(d => M.selic = parseFloat(d[0].valor)),
     getJson('https://api.bcb.gov.br/dados/serie/bcdata.sgs.13522/dados/ultimos/1?formato=json').then(d => { M.ipca = parseFloat(d[0].valor); M.ipcaRef = d[0].data.slice(3); }),
+    getJson('https://api.bcb.gov.br/dados/serie/bcdata.sgs.189/dados/ultimos/12?formato=json').then(d => { if (d.length < 12) throw new Error('igpm'); M.igpm = (d.reduce((a, x) => a * (1 + parseFloat(x.valor) / 100), 1) - 1) * 100; M.igpmRef = d[d.length - 1].data.slice(3); }),
     getJson('https://economia.awesomeapi.com.br/json/last/USD-BRL').then(d => M.usd = parseFloat(d.USDBRL.bid)),
     getJson('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=brl&include_24hr_change=true').then(d => { M.btc = d.bitcoin.brl; M.chg = d.bitcoin.brl_24h_change; })
   ];
@@ -203,6 +220,8 @@ function renderMarket() {
   $('m-selic').textContent = num(M.selic) + '% a.a.';
   $('m-ipca').textContent = M.ipca != null ? num(M.ipca) + '%' : '—';
   $('m-ipca-ref').textContent = M.ipcaRef ? 'acumulado até ' + M.ipcaRef : '';
+  $('m-igpm').textContent = M.igpm != null ? num(M.igpm) + '%' : '—';
+  $('m-igpm-ref').textContent = M.igpmRef ? 'acumulado até ' + M.igpmRef : '';
   $('m-usd').textContent = brl.format(M.usd);
   $('m-btc').textContent = M.btc ? brl.format(M.btc) : '—';
   const c = $('m-chg');
@@ -298,7 +317,7 @@ function renderBoxes() {
       return `<div class="py-2 text-xs"><div class="flex gap-2 items-center"><input type="date" class="inp !py-1" value="${d.date}" aria-label="Data do aporte" onchange="editDep(${b.id},${d.id},'date',this.value)"><input type="number" min="0" step="0.01" class="inp !py-1" value="${d.amount}" aria-label="Valor do aporte" onchange="editDep(${b.id},${d.id},'amount',+this.value)"><button class="text-slate-500 hover:text-rose-400 px-1" aria-label="Remover aporte" onclick="delDep(${b.id},${d.id})">✕</button></div><div class="flex justify-between text-slate-400 mt-1"><span class="text-emerald-400">+${brl.format(c.g)}</span><span>${c.age}d · IR ${num(c.rate * 100, 1)}%${c.iof > 0 ? ' + IOF' : ''}</span></div></div>`; }).join('');
     return `<div class="bg-slate-950 border border-slate-800 rounded-xl p-3" style="border-left:4px solid ${COLORS[i % COLORS.length]}">
       <div class="flex gap-2 mb-2">
-        <input class="inp" aria-label="Nome" value="${esc(b.name)}" onchange="upd(${b.id},'name',this.value)">
+        <input class="inp" aria-label="Nome" value="${esc(b.name)}" onchange="upd(${b.id},'name',this.value)">${t.g > 0.005 ? FLAG : ''}
         <button class="text-slate-500 hover:text-rose-400 px-2" aria-label="Remover ${esc(b.name)}" onclick="delBox(${b.id})">✕</button>
       </div>
       <div class="grid grid-cols-3 gap-2 mb-2">
@@ -347,7 +366,13 @@ function project(b, mon, months) {
   const gross = res.reduce((a, c) => a + c.g, 0), tax = res.reduce((a, c) => a + c.tax, 0), invested = t0.inv + mon * months;
   return {now:t0.inv + t0.g, invested, gross, tax, net:invested + gross - tax, gain:invested + gross - tax - invested};
 }
+function clearSim() {
+  $('s-mon').value = ''; $('s-mth').value = ''; UI.sim = {mon:'', months:''}; saveUI();
+  $('sim').innerHTML = '<p class="md:col-span-2 text-slate-400">Informe o aporte mensal e o prazo para simular.</p>';
+}
 function simulate() {
+  if ($('s-mon').value === '' && $('s-mth').value === '') { clearSim(); return; }
+  UI.sim = {mon:$('s-mon').value, months:$('s-mth').value}; saveUI();
   const mon = +$('s-mon').value || 0, months = Math.min(600, Math.max(1, parseInt($('s-mth').value) || 12));
   if (!S.boxes.length) { $('sim').innerHTML = '<p class="text-slate-400">Adicione uma caixinha para simular.</p>'; return; }
   const rows = S.boxes.map(b => ({b, ...project(b, mon, months)})).sort((a, c) => c.gain - a.gain);
@@ -368,6 +393,7 @@ function addDca() {
   S.dca.push({id:Date.now(), date, brl:v, price}); save();
   $('d-brl').value = ''; $('d-price').value = ''; renderAll();
 }
+function clearDca() { if (!S.dca.length || !confirm('Apagar todas as compras de Bitcoin?')) return; S.dca = []; save(); renderAll(); }
 function delDca(id) { S.dca = S.dca.filter(x => x.id !== id); save(); renderAll(); }
 function dcaStats() {
   const inv = S.dca.reduce((a, x) => a + x.brl, 0), btc = S.dca.reduce((a, x) => a + x.brl / x.price, 0);
@@ -381,6 +407,7 @@ function btcTax(s) {
 }
 function renderDca() {
   const s = dcaStats(), t = btcTax(s), cls = s.pl >= 0 ? 'text-emerald-400' : 'text-rose-400';
+  $('btc-flag').innerHTML = M.btc && s.pl > 0.005 ? FLAG : '';
   $('dca-sum').innerHTML = cell('Investido', brl.format(s.inv)) + cell('Total atual', M.btc ? brl.format(s.val) : '—', 'text-emerald-400') + cell('Quantidade', num(s.btc, 8) + ' BTC') +
     cell('Preço médio', s.avg ? brl.format(s.avg) : '—') + cell('Em sats', Math.round(s.btc * 1e8).toLocaleString('pt-BR')) +
     cell('Resultado bruto', M.btc && s.inv ? (s.pl >= 0 ? '+' : '') + brl.format(s.pl) + ' (' + num(s.plp, 1) + '%)' : '—', cls) +
@@ -412,6 +439,11 @@ function renderPie() {
   /* Ganhos e perdas por ativo */
   const items = S.boxes.map((b, k) => ({n:b.name, v:calcs[k].g}));
   if (M.btc && s.inv) items.push({n:'Bitcoin', v:s.pl});
+  const winners = items.filter(x => x.v > 0.005), pf = $('profit-flag');
+  if (winners.length) {
+    pf.className = 'flex items-center gap-2 mb-3 px-4 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-sm text-emerald-400';
+    pf.innerHTML = '<span class="relative flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span></span><span>▲ Em lucro: ' + winners.map(w => esc(w.n) + ' (+' + brl.format(w.v) + ')').join(' · ') + '</span>';
+  } else { pf.className = 'hidden'; pf.innerHTML = ''; }
   gainChart.data.labels = items.map(x => x.n);
   gainChart.data.datasets[0].data = items.map(x => x.v);
   gainChart.data.datasets[0].backgroundColor = items.map(x => x.v >= 0 ? '#10b981' : '#f43f5e');
@@ -473,6 +505,32 @@ try {
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 } catch(e) {}
 
+/* Fundo temático de investimentos (velas, linha de alta, moedas) */
+(function () {
+  let c = '', pts = [];
+  for (let i = 0; i < 26; i++) {
+    const x = 50 + i * 60, base = 800 - i * 20 + Math.sin(i * 1.3) * 45, h = 30 + (i * 53) % 80, col = (i * 7 + 3) % 5 ? '#10b981' : '#f43f5e';
+    pts.push(x + ',' + base.toFixed(0));
+    c += `<line x1='${x}' y1='${base - h * .8}' x2='${x}' y2='${base + h * .8}' stroke='${col}' stroke-width='3'/><rect x='${x - 12}' y='${base - h / 2}' width='24' height='${h}' rx='3' fill='${col}'/>`;
+  }
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 900' preserveAspectRatio='xMidYMax slice'><g opacity='.2'>${c}<polyline points='${pts.join(' ')}' fill='none' stroke='#34d399' stroke-width='5'/></g><g fill='none' stroke='#fbbf24' stroke-width='6' opacity='.14'><circle cx='1320' cy='220' r='110'/><circle cx='300' cy='170' r='70'/></g><g fill='#fbbf24' opacity='.14' font-family='Arial,sans-serif' text-anchor='middle'><text x='1320' y='275' font-size='150'>₿</text><text x='300' y='215' font-size='90'>$</text></g></svg>`;
+  document.documentElement.style.setProperty('--bgimg', `url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
+})();
+/* Seções recolhíveis (estado salvo) */
+function initCollapse() {
+  document.querySelectorAll('.card').forEach((c, i) => {
+    const h = c.querySelector('h2'); if (!h) return;
+    const head = h.parentElement === c ? h : h.parentElement, body = [...c.children].filter(x => x !== head);
+    if (head === h) h.classList.add('cap');
+    const btn = document.createElement('button');
+    btn.className = 'chev'; btn.setAttribute('aria-label', 'Recolher ou expandir esta seção'); head.appendChild(btn);
+    const apply = () => { const col = !!UI.collapsed['c' + i]; c.classList.toggle('collapsed', col); body.forEach(x => x.classList.toggle('hidden', col)); btn.textContent = col ? '▸' : '▾'; btn.setAttribute('aria-expanded', String(!col)); };
+    const toggle = () => { UI.collapsed['c' + i] = !UI.collapsed['c' + i]; saveUI(); apply(); window.dispatchEvent(new Event('resize')); };
+    btn.onclick = e => { e.stopPropagation(); toggle(); }; h.onclick = toggle;
+    apply();
+  });
+}
+$('s-mon').value = UI.sim.mon; $('s-mth').value = UI.sim.months; initCollapse();
 $('d-date').value = today();
 renderMarket(); renderAll(); simulate();
 loadMarket(); loadHistory(); loadCdiHist();
