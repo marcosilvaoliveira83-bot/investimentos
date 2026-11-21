@@ -28,6 +28,9 @@
   .chev{font-size:.85rem;color:#94a3b8;padding:0 .4rem;line-height:1}
   h2.cap{display:flex;justify-content:space-between;align-items:center;cursor:pointer}
   .card.collapsed h2{margin-bottom:0}
+  .card.collapsed{flex:none}
+  #topbar .lbl{margin-bottom:0;font-size:.68rem}
+  #topbar .chip{padding:.1rem .55rem;font-size:.7rem}
   #topbar{background:rgba(2,6,23,.88);backdrop-filter:blur(10px);border-bottom:1px solid #1e293b}
   #topbar.pin{position:sticky;top:0;z-index:50}
   html.light #topbar{background:rgba(255,255,255,.92);border-color:#e2e8f0}
@@ -54,17 +57,17 @@
 
 <div id="topbar">
 <header>
-  <div class="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between gap-3">
+  <div class="max-w-7xl mx-auto px-4 py-1 flex items-center justify-between gap-3">
     <div class="min-w-0">
-      <h1 class="text-base sm:text-xl font-bold tracking-tight truncate">Meus Investimentos e Bitcoin</h1>
+      <h1 class="text-base sm:text-lg font-bold tracking-tight truncate">Meus Investimentos e Bitcoin</h1>
       <p id="greet" class="text-xs text-slate-400 truncate"></p>
     </div>
     <div class="flex items-center gap-3">
       <div class="text-right leading-tight">
-        <div class="font-mono text-xl sm:text-2xl font-semibold tracking-tight text-emerald-400"><span id="live-hm">00:00</span><span id="live-s" class="text-xs sm:text-sm text-slate-400">:00</span></div>
+        <div class="font-mono text-lg sm:text-xl font-semibold tracking-tight text-emerald-400"><span id="live-hm">00:00</span><span id="live-s" class="text-xs sm:text-sm text-slate-400">:00</span></div>
         <div id="live-date" class="text-[11px] sm:text-xs text-slate-400"></div>
       </div>
-      <div class="flex flex-col gap-1">
+      <div class="flex flex-col sm:flex-row gap-1">
         <button id="theme-btn" class="chip" onclick="toggleTheme()" aria-label="Alternar tema claro ou escuro"></button>
         <button id="pin-btn" class="chip" onclick="togglePin()" aria-label="Fixar ou soltar o topo da página"></button>
       </div>
@@ -72,17 +75,17 @@
   </div>
 </header>
 
-<section class="max-w-7xl mx-auto px-4 pt-1 pb-2">
+<section class="max-w-7xl mx-auto px-4 pt-0.5 pb-1.5">
   <div id="profit-flag" class="hidden" role="status"></div>
   <div id="loss-flag" class="hidden" role="status"></div>
   <div class="flex gap-2 overflow-x-auto pb-1 text-center lg:grid lg:grid-cols-7 lg:overflow-visible">
-    <div class="card !p-2 shrink-0 min-w-[128px] lg:min-w-0"><span class="lbl">CDI</span><b id="m-cdi" class="text-lg text-emerald-400">—</b></div>
-    <div class="card !p-2 shrink-0 min-w-[128px] lg:min-w-0"><span class="lbl">Selic meta</span><b id="m-selic" class="text-lg text-emerald-400">—</b></div>
-    <div class="card !p-2 shrink-0 min-w-[128px] lg:min-w-0"><span class="lbl">IPCA (12 meses)</span><b id="m-ipca" class="text-lg text-rose-400">—</b><span id="m-ipca-ref" class="block text-xs text-slate-500"></span></div>
-    <div class="card !p-2 shrink-0 min-w-[128px] lg:min-w-0"><span class="lbl">IGP-M aluguel (12m)</span><b id="m-igpm" class="text-lg text-amber-400">—</b><span id="m-igpm-ref" class="block text-xs text-slate-500"></span></div>
-    <div class="card !p-2 shrink-0 min-w-[128px] lg:min-w-0"><span class="lbl">Dólar</span><b id="m-usd" class="text-lg text-sky-400">—</b></div>
-    <div class="card !p-2 shrink-0 min-w-[128px] lg:min-w-0"><span class="lbl">Bitcoin (R$)</span><b id="m-btc" class="text-lg text-amber-400">—</b><span id="m-chg" class="block text-xs"></span></div>
-    <div class="card !p-2 shrink-0 min-w-[128px] lg:min-w-0"><span class="lbl">Patrimônio total</span><b id="m-total" class="text-lg">—</b><span id="m-gain" class="block text-xs"></span></div>
+    <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">CDI</span><b id="m-cdi" class="text-base text-emerald-400">—</b></div>
+    <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">Selic meta</span><b id="m-selic" class="text-base text-emerald-400">—</b></div>
+    <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">IPCA (12 meses)</span><b id="m-ipca" class="text-base text-rose-400">—</b><span id="m-ipca-ref" class="block text-xs text-slate-500"></span></div>
+    <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">IGP-M aluguel (12m)</span><b id="m-igpm" class="text-base text-amber-400">—</b><span id="m-igpm-ref" class="block text-xs text-slate-500"></span></div>
+    <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">Dólar</span><b id="m-usd" class="text-base text-sky-400">—</b></div>
+    <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">Bitcoin (R$)</span><b id="m-btc" class="text-base text-amber-400">—</b><span id="m-chg" class="block text-xs"></span></div>
+    <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">Patrimônio total</span><b id="m-total" class="text-base">—</b><span id="m-gain" class="block text-xs"></span></div>
   </div>
   </section>
 </div>
@@ -91,18 +94,23 @@
 <main class="max-w-7xl mx-auto px-4 py-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
   <!-- Coluna esquerda -->
-  <div class="space-y-6">
+  <div class="flex flex-col gap-6">
     <div class="card">
       <h2>Caixinhas</h2>
       <div id="boxes" class="space-y-3"></div>
       <button class="btn mt-4 w-full" onclick="addBox()">Adicionar caixinha</button>
     </div>
-
-
+    <div class="card">
+          <h2>Distribuição</h2>
+          <div class="h-[220px]"><canvas id="pie" role="img" aria-label="Distribuição do patrimônio"></canvas></div>
+        </div>
+    <div class="card flex-1">
+          <h2>Ganhos e perdas</h2>
+          <div class="h-[200px]"><canvas id="gainChart" role="img" aria-label="Ganho ou perda por ativo"></canvas></div>
+          <p class="text-xs text-slate-500 mt-2">Verde: ganho. Vermelho: perda. Valores brutos, antes de IR e IOF.</p>
+        </div>
   </div>
-
-  <!-- Coluna direita -->
-  <div class="lg:col-span-2 space-y-6">
+  <div class="lg:col-span-2 flex flex-col gap-6">
     <div class="card">
       <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
         <h2 class="!mb-0">Bitcoin em reais</h2>
@@ -115,7 +123,6 @@
       </div>
       <div class="h-[280px]"><canvas id="btcChart" role="img" aria-label="Gráfico do preço do Bitcoin"></canvas></div>
     </div>
-
     <div class="card">
       <h2>Simulador de aportes</h2>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
@@ -126,9 +133,7 @@
       </div>
       <div id="sim" class="mt-4 text-sm grid md:grid-cols-2 gap-3"></div>
     </div>
-  </div>
-    <div class="lg:col-span-3 grid md:grid-cols-3 gap-6">
-      <div class="card md:col-span-2">
+    <div class="card flex-1">
         <h2><span>Compras de Bitcoin (DCA) <span id="btc-flag"></span></span></h2>
         <div class="grid grid-cols-3 gap-2">
           <div><label class="lbl" for="d-date">Data</label><input id="d-date" type="date" class="inp"></div>
@@ -140,18 +145,7 @@
         <div id="dca-list" class="mt-3 max-h-48 overflow-y-auto text-sm divide-y divide-slate-800"></div>
         <button class="text-xs text-slate-500 hover:text-rose-400 mt-2 underline" onclick="clearDca()">Apagar todas as compras</button>
       </div>
-      <div class="md:col-span-1 space-y-6">
-        <div class="card">
-          <h2>Distribuição</h2>
-          <div class="h-[220px]"><canvas id="pie" role="img" aria-label="Distribuição do patrimônio"></canvas></div>
-        </div>
-        <div class="card">
-          <h2>Ganhos e perdas</h2>
-          <div class="h-[200px]"><canvas id="gainChart" role="img" aria-label="Ganho ou perda por ativo"></canvas></div>
-          <p class="text-xs text-slate-500 mt-2">Verde: ganho. Vermelho: perda. Valores brutos, antes de IR e IOF.</p>
-        </div>
-      </div>
-    </div>
+  </div>
   <div class="card lg:col-span-3">
     <h2>Comparar investimentos de renda fixa</h2>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
@@ -520,7 +514,7 @@ function renderPie() {
   /* Patrimônio total, quanto foi aportado e ganho/perda */
   const total = data.reduce((a, b) => a + b, 0), inv = calcs.reduce((a, t) => a + t.inv, 0) + (M.btc ? s.inv : 0), gain = total - inv;
   const col = !inv ? '' : gain >= 0 ? 'text-emerald-400' : 'text-rose-400';
-  $('m-total').textContent = brl.format(total); $('m-total').className = 'text-lg ' + col;
+  $('m-total').textContent = brl.format(total); $('m-total').className = 'text-base ' + col;
   $('m-gain').textContent = inv ? (gain >= 0 ? '+' : '') + brl.format(gain) + ' (' + (gain >= 0 ? '+' : '') + num(gain / inv * 100, 2) + '%)' : '';
   $('m-gain').className = 'block text-xs ' + col;
   /* Ganhos e perdas por ativo */
@@ -529,7 +523,7 @@ function renderPie() {
   const bar = (el, list, up) => {
     if (!list.length) { el.className = 'hidden'; el.innerHTML = ''; return; }
     const c = up ? 'emerald' : 'rose';
-    el.className = `flex items-center gap-2 mb-2 px-3 py-1.5 rounded-xl border border-${c}-500/30 bg-${c}-500/10 text-xs sm:text-sm text-${c}-400`;
+    el.className = `flex items-center gap-2 mb-1.5 px-3 py-1 rounded-xl border border-${c}-500/30 bg-${c}-500/10 text-xs sm:text-sm text-${c}-400`;
     el.innerHTML = `<span class="relative flex h-3 w-3 shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-${c}-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-${c}-500"></span></span><span>${up ? '▲ Em lucro' : '▼ Em prejuízo'}: ` + list.map(w => esc(w.n) + ' (' + (up ? '+' : '') + brl.format(w.v) + ')').join(' · ') + '</span>';
   };
   bar($('profit-flag'), items.filter(x => x.v > 0.005), true);
@@ -744,7 +738,7 @@ function applyTheme(t) {
   pie.options.plugins.legend.labels.color = txt;
   pie.data.datasets[0].borderColor = l ? '#fff' : '#0f172a';
   btcChart.update(); pie.update(); histChart.update(); gainChart.update(); assetChart.update();
-  $('theme-btn').textContent = l ? 'Modo escuro' : 'Modo claro';
+  $('theme-btn').textContent = l ? 'Escuro' : 'Claro';
   document.querySelector('meta[name=theme-color]').content = l ? '#f1f5f9' : '#020617';
   write('inv-theme', t);
   if (UI.tv && $('tv-chart').firstChild) loadTV();
