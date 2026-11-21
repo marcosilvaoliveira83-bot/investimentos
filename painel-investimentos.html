@@ -28,6 +28,9 @@
   .chev{font-size:.85rem;color:#94a3b8;padding:0 .4rem;line-height:1}
   h2.cap{display:flex;justify-content:space-between;align-items:center;cursor:pointer}
   .card.collapsed h2{margin-bottom:0}
+  #topbar{background:rgba(2,6,23,.88);backdrop-filter:blur(10px);border-bottom:1px solid #1e293b}
+  #topbar.pin{position:sticky;top:0;z-index:50}
+  html.light #topbar{background:rgba(255,255,255,.92);border-color:#e2e8f0}
   /* Modo claro */
   html.light body{color:#0f172a}
   html.light .bg-slate-950{background:#f1f5f9;color:#0f172a}
@@ -49,34 +52,41 @@
 </head>
 <body class="text-slate-100 min-h-screen">
 
-<header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
-  <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
-    <div>
-      <h1 class="text-xl font-bold tracking-tight">Meus Investimentos e Bitcoin</h1>
-      <p class="text-xs text-slate-400">Caixinhas, simulador com IR regressivo e DCA</p>
+<div id="topbar">
+<header>
+  <div class="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between gap-3">
+    <div class="min-w-0">
+      <h1 class="text-base sm:text-xl font-bold tracking-tight truncate">Meus Investimentos e Bitcoin</h1>
+      <p id="greet" class="text-xs text-slate-400 truncate"></p>
     </div>
-    <div class="flex items-center gap-3 text-sm bg-slate-950 px-4 py-2 rounded-xl border border-slate-800">
-      <span id="live-date" class="text-slate-300"></span>
-      <span class="text-slate-700">|</span>
-      <span id="live-clock" class="text-emerald-400 font-mono"></span>
-      <button id="theme-btn" class="chip ml-1" onclick="toggleTheme()" aria-label="Alternar tema claro ou escuro"></button>
+    <div class="flex items-center gap-3">
+      <div class="text-right leading-tight">
+        <div class="font-mono text-xl sm:text-2xl font-semibold tracking-tight text-emerald-400"><span id="live-hm">00:00</span><span id="live-s" class="text-xs sm:text-sm text-slate-400">:00</span></div>
+        <div id="live-date" class="text-[11px] sm:text-xs text-slate-400"></div>
+      </div>
+      <div class="flex flex-col gap-1">
+        <button id="theme-btn" class="chip" onclick="toggleTheme()" aria-label="Alternar tema claro ou escuro"></button>
+        <button id="pin-btn" class="chip" onclick="togglePin()" aria-label="Fixar ou soltar o topo da página"></button>
+      </div>
     </div>
   </div>
 </header>
 
-<section class="max-w-7xl mx-auto px-4 pt-5">
+<section class="max-w-7xl mx-auto px-4 pt-1 pb-2">
   <div id="profit-flag" class="hidden" role="status"></div>
-  <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 text-center">
-    <div class="card !p-3"><span class="lbl">CDI</span><b id="m-cdi" class="text-lg text-emerald-400">—</b></div>
-    <div class="card !p-3"><span class="lbl">Selic meta</span><b id="m-selic" class="text-lg text-emerald-400">—</b></div>
-    <div class="card !p-3"><span class="lbl">IPCA (12 meses)</span><b id="m-ipca" class="text-lg text-rose-400">—</b><span id="m-ipca-ref" class="block text-xs text-slate-500"></span></div>
-    <div class="card !p-3"><span class="lbl">IGP-M aluguel (12m)</span><b id="m-igpm" class="text-lg text-amber-400">—</b><span id="m-igpm-ref" class="block text-xs text-slate-500"></span></div>
-    <div class="card !p-3"><span class="lbl">Dólar</span><b id="m-usd" class="text-lg text-sky-400">—</b></div>
-    <div class="card !p-3"><span class="lbl">Bitcoin (R$)</span><b id="m-btc" class="text-lg text-amber-400">—</b><span id="m-chg" class="block text-xs"></span></div>
-    <div class="card !p-3 col-span-2 md:col-span-1"><span class="lbl">Patrimônio total</span><b id="m-total" class="text-lg">—</b><span id="m-gain" class="block text-xs"></span></div>
+  <div id="loss-flag" class="hidden" role="status"></div>
+  <div class="flex gap-2 overflow-x-auto pb-1 text-center lg:grid lg:grid-cols-7 lg:overflow-visible">
+    <div class="card !p-2 shrink-0 min-w-[128px] lg:min-w-0"><span class="lbl">CDI</span><b id="m-cdi" class="text-lg text-emerald-400">—</b></div>
+    <div class="card !p-2 shrink-0 min-w-[128px] lg:min-w-0"><span class="lbl">Selic meta</span><b id="m-selic" class="text-lg text-emerald-400">—</b></div>
+    <div class="card !p-2 shrink-0 min-w-[128px] lg:min-w-0"><span class="lbl">IPCA (12 meses)</span><b id="m-ipca" class="text-lg text-rose-400">—</b><span id="m-ipca-ref" class="block text-xs text-slate-500"></span></div>
+    <div class="card !p-2 shrink-0 min-w-[128px] lg:min-w-0"><span class="lbl">IGP-M aluguel (12m)</span><b id="m-igpm" class="text-lg text-amber-400">—</b><span id="m-igpm-ref" class="block text-xs text-slate-500"></span></div>
+    <div class="card !p-2 shrink-0 min-w-[128px] lg:min-w-0"><span class="lbl">Dólar</span><b id="m-usd" class="text-lg text-sky-400">—</b></div>
+    <div class="card !p-2 shrink-0 min-w-[128px] lg:min-w-0"><span class="lbl">Bitcoin (R$)</span><b id="m-btc" class="text-lg text-amber-400">—</b><span id="m-chg" class="block text-xs"></span></div>
+    <div class="card !p-2 shrink-0 min-w-[128px] lg:min-w-0"><span class="lbl">Patrimônio total</span><b id="m-total" class="text-lg">—</b><span id="m-gain" class="block text-xs"></span></div>
   </div>
-  <p id="status" class="text-xs text-slate-500 mt-2 text-right" aria-live="polite"></p>
-</section>
+  </section>
+</div>
+<p id="status" class="max-w-7xl mx-auto px-4 pt-2 text-xs text-slate-500 text-right" aria-live="polite"></p>
 
 <main class="max-w-7xl mx-auto px-4 py-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -143,6 +153,45 @@
       </div>
     </div>
   <div class="card lg:col-span-3">
+    <h2>Cotações da bolsa e compra</h2>
+    <div class="flex flex-wrap gap-2 items-end mb-3">
+      <div><label class="lbl" for="b-broker">Minha corretora (ações)</label><select id="b-broker" class="inp" onchange="setBroker()"></select></div>
+      <div id="b-custom-wrap" class="hidden"><label class="lbl" for="b-url">Endereço (https://)</label><input id="b-url" class="inp" placeholder="https://sua-corretora.com.br" onchange="setBroker()"></div>
+      <div><label class="lbl" for="b-exch">Onde compro Bitcoin</label><select id="b-exch" class="inp" onchange="setBroker()"></select></div>
+      <div><label class="lbl" for="q-add">Adicionar ticker</label><div class="flex gap-1"><input id="q-add" class="inp !w-28" placeholder="BBSE3" maxlength="7"><button class="chip" onclick="addWatch()" aria-label="Adicionar ticker">+</button></div></div>
+      <button class="chip !py-2.5" onclick="loadQuotes()">Atualizar cotações</button>
+    </div>
+    <div id="q-table" class="overflow-x-auto text-sm"></div>
+    <p id="q-note" class="text-xs text-slate-400 mt-2"></p>
+    <details class="mt-2 text-xs text-slate-400">
+      <summary class="cursor-pointer">Cotação de todas as ações (token gratuito da brapi)</summary>
+      <p class="mt-1">Sem token, só Petrobras, Magazine Luiza, Vale e Itaú carregam. Para as demais: crie uma conta grátis em brapi.dev, gere seu token no painel e cole abaixo. Ele fica salvo só neste navegador. O plano gratuito consulta 1 ação por vez, com atraso de cerca de 15 a 30 minutos, e o painel atualiza a cada 15 minutos.</p>
+      <input id="a-token" type="password" class="inp mt-1 max-w-xs" placeholder="Token da brapi" autocomplete="off" onchange="UI.brapi = this.value.trim(); saveUI(); loadQuotes()">
+    </details>
+    <p class="text-xs text-slate-500 mt-2">O botão Comprar abre o site da corretora em outra aba, onde você entra na sua conta e faz a ordem. Não existe link que compre direto, e por isso não montei links por ativo. Confira o endereço na barra do navegador, veja se a corretora é autorizada (CVM e B3; no caso de Bitcoin, confira a exchange) e nunca entre por links recebidos em mensagens.</p>
+  </div>
+  <div class="card lg:col-span-3">
+    <h2>Simulador de Bitcoin e ações</h2>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
+      <div class="col-span-2 md:col-span-1"><label class="lbl" for="a-asset">Ativo</label><select id="a-asset" class="inp" onchange="onAsset()"></select></div>
+      <div><label class="lbl" for="a-price">Cotação (R$)</label><input id="a-price" type="number" min="0" step="0.01" class="inp" onchange="UI.sim2.manual = true; assetSim()"></div>
+      <div><label class="lbl" for="a-mon">Aporte mensal (R$)</label><input id="a-mon" type="number" min="0" value="500" class="inp" onchange="assetSim()"></div>
+      <div><label class="lbl" for="a-mth">Prazo (meses)</label><input id="a-mth" type="number" min="1" max="600" value="12" class="inp" onchange="assetSim()"></div>
+      <div><label class="lbl" for="a-ret">Valorização (% a.a.)</label><input id="a-ret" type="number" step="0.5" value="10" class="inp" onchange="assetSim()"></div>
+      <div><label class="lbl" for="a-dy">Dividendos (% a.a.)</label><input id="a-dy" type="number" min="0" step="0.5" value="0" class="inp" onchange="assetSim()"></div>
+    </div>
+    <div class="flex flex-wrap gap-2 mt-3 items-center">
+      <button class="btn" onclick="assetSim()">Simular</button>
+      <button class="chip !py-2.5" onclick="fetchQuote()">Atualizar cotação</button>
+      <button class="chip !py-2.5" onclick="clearAsset()">Limpar</button>
+      <span id="a-status" class="text-xs text-slate-400"></span>
+    </div>
+    <p class="mt-2 text-xs text-slate-500">Cotação automática das ações: veja o card Cotações da bolsa e compra.</p>
+    <div id="a-out" class="mt-4"></div>
+    <div class="h-[220px] mt-3"><canvas id="assetChart" role="img" aria-label="Evolução do total aportado e do valor projetado"></canvas></div>
+    <p class="text-xs text-slate-500 mt-2">Projeção hipotética: a valorização informada se repete todo ano e os dividendos são reinvestidos, sem desconto de imposto (confirme a regra para o seu volume). Ações e Bitcoin podem perder valor. IR estimado: ações pagam 15% do lucro se a venda no mês passar de R$ 20 mil; Bitcoin segue a regra escolhida no card de compras. Não é recomendação de investimento.</p>
+  </div>
+  <div class="card lg:col-span-3">
     <h2>Histórico de aportes e rendimentos</h2>
     <div id="hist-sum" class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm mb-4"></div>
     <div class="grid md:grid-cols-2 gap-6">
@@ -156,7 +205,7 @@
 <footer class="max-w-7xl mx-auto px-4 pb-8 text-xs text-slate-500">
   Simulações são estimativas (CDI projetado constante, IR regressivo por aporte) e não são recomendação de investimento.
   <button class="underline ml-2" onclick="exportData()">Exportar dados</button><button class="underline ml-2" onclick="resetAll()">Apagar todos os dados</button>
-</footer>
+<p class="text-right mt-4 text-[11px] opacity-70">Desenvolvido por Marco Antonio Silva de Oliveira · v<span id="ver"></span></p></footer>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -179,6 +228,10 @@ let CDIH = read('inv-cdi', {});
 let UI = read('inv-ui', {});
 UI.sim = UI.sim || {mon:500, months:12}; UI.collapsed = UI.collapsed || {};
 const saveUI = () => write('inv-ui', UI);
+const VERSION = '2.0.0 · nov/2026';
+const LOSS = '<span class="inline-flex items-center gap-1 text-xs text-rose-400 font-normal ml-2 whitespace-nowrap"><span class="inline-block w-2 h-2 rounded-full bg-rose-400 animate-pulse"></span>prejuízo</span>';
+function applyPin() { const p = UI.pin !== false; $('topbar').classList.toggle('pin', p); $('pin-btn').textContent = p ? 'Fixo' : 'Solto'; $('pin-btn').setAttribute('aria-pressed', String(p)); }
+function togglePin() { UI.pin = (UI.pin === false); saveUI(); applyPin(); }
 const FLAG = '<span class="inline-flex items-center gap-1 text-xs text-emerald-400 font-normal ml-2 whitespace-nowrap"><span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>lucro</span>';
 let M = read('inv-mkt', {cdi:13.65, selic:13.75, usd:5.79, btc:null, chg:null});
 let lastUpdate = null, range = 1;
@@ -188,8 +241,11 @@ const COLORS = ['#10b981','#6366f1','#0ea5e9','#ec4899','#14b8a6','#a855f7','#f4
 /* Relógio */
 function tick() {
   const n = new Date();
-  $('live-clock').textContent = n.toLocaleTimeString('pt-BR');
-  $('live-date').textContent = n.toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit', month:'short', year:'numeric'});
+  $('live-hm').textContent = n.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  $('live-s').textContent = ':' + String(n.getSeconds()).padStart(2, '0');
+  const dt = n.toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long'});
+  $('live-date').textContent = dt.charAt(0).toUpperCase() + dt.slice(1);
+  const hr = n.getHours(); $('greet').textContent = (hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite') + ', Marco';
   if (lastUpdate) $('status').textContent = 'Cotações atualizadas há ' + Math.round((Date.now()-lastUpdate)/1000) + 's';
 }
 setInterval(tick, 1000); tick();
@@ -212,7 +268,7 @@ async function loadMarket() {
   const res = await Promise.allSettled(jobs);
   if (res.some(r => r.status === 'fulfilled')) { lastUpdate = Date.now(); write('inv-mkt', M); }
   if (res.some(r => r.status === 'rejected')) $('status').textContent = 'Algumas cotações falharam; usando o último valor salvo.';
-  renderMarket();
+  renderMarket(); syncBtcPrice(); renderQuotes();
   if ($('boxes').contains(document.activeElement)) { renderDca(); renderPie(); renderHist(); } else renderAll();
 }
 function renderMarket() {
@@ -407,7 +463,7 @@ function btcTax(s) {
 }
 function renderDca() {
   const s = dcaStats(), t = btcTax(s), cls = s.pl >= 0 ? 'text-emerald-400' : 'text-rose-400';
-  $('btc-flag').innerHTML = M.btc && s.pl > 0.005 ? FLAG : '';
+  $('btc-flag').innerHTML = !M.btc ? '' : s.pl > 0.005 ? FLAG : s.pl < -0.005 ? LOSS : '';
   $('dca-sum').innerHTML = cell('Investido', brl.format(s.inv)) + cell('Total atual', M.btc ? brl.format(s.val) : '—', 'text-emerald-400') + cell('Quantidade', num(s.btc, 8) + ' BTC') +
     cell('Preço médio', s.avg ? brl.format(s.avg) : '—') + cell('Em sats', Math.round(s.btc * 1e8).toLocaleString('pt-BR')) +
     cell('Resultado bruto', M.btc && s.inv ? (s.pl >= 0 ? '+' : '') + brl.format(s.pl) + ' (' + num(s.plp, 1) + '%)' : '—', cls) +
@@ -439,11 +495,14 @@ function renderPie() {
   /* Ganhos e perdas por ativo */
   const items = S.boxes.map((b, k) => ({n:b.name, v:calcs[k].g}));
   if (M.btc && s.inv) items.push({n:'Bitcoin', v:s.pl});
-  const winners = items.filter(x => x.v > 0.005), pf = $('profit-flag');
-  if (winners.length) {
-    pf.className = 'flex items-center gap-2 mb-3 px-4 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-sm text-emerald-400';
-    pf.innerHTML = '<span class="relative flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span></span><span>▲ Em lucro: ' + winners.map(w => esc(w.n) + ' (+' + brl.format(w.v) + ')').join(' · ') + '</span>';
-  } else { pf.className = 'hidden'; pf.innerHTML = ''; }
+  const bar = (el, list, up) => {
+    if (!list.length) { el.className = 'hidden'; el.innerHTML = ''; return; }
+    const c = up ? 'emerald' : 'rose';
+    el.className = `flex items-center gap-2 mb-2 px-3 py-1.5 rounded-xl border border-${c}-500/30 bg-${c}-500/10 text-xs sm:text-sm text-${c}-400`;
+    el.innerHTML = `<span class="relative flex h-3 w-3 shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-${c}-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-${c}-500"></span></span><span>${up ? '▲ Em lucro' : '▼ Em prejuízo'}: ` + list.map(w => esc(w.n) + ' (' + (up ? '+' : '') + brl.format(w.v) + ')').join(' · ') + '</span>';
+  };
+  bar($('profit-flag'), items.filter(x => x.v > 0.005), true);
+  bar($('loss-flag'), items.filter(x => x.v < -0.005), false);
   gainChart.data.labels = items.map(x => x.n);
   gainChart.data.datasets[0].data = items.map(x => x.v);
   gainChart.data.datasets[0].backgroundColor = items.map(x => x.v >= 0 ? '#10b981' : '#f43f5e');
@@ -454,6 +513,111 @@ const histChart = new Chart($('histChart'), {type:'line', data:{labels:[], datas
   {label:'Valor atual', data:[], borderColor:'#10b981', backgroundColor:'#10b981', pointRadius:6, showLine:false}]},
   options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{boxWidth:10}}, tooltip:{callbacks:{label:c => c.dataset.label + ': ' + brl.format(c.parsed.y)}}},
     scales:{x:{grid:{color:'#1e293b'}, ticks:{maxTicksLimit:6}}, y:{grid:{color:'#1e293b'}, ticks:{callback:v => brl.format(v)}}}}});
+/* Simulador de Bitcoin e ações */
+const ASSETS = {BTC:'Bitcoin (BTC)', BBAS3:'Banco do Brasil (BBAS3)', PETR4:'Petrobras (PETR4)', CPFE3:'CPFL Energia (CPFE3)', MGLU3:'Magazine Luiza (MGLU3)', VALE3:'Vale (VALE3)', ITUB4:'Itaú Unibanco (ITUB4)', WEGE3:'WEG (WEGE3)', BBDC4:'Bradesco (BBDC4)', ABEV3:'Ambev (ABEV3)', TAEE11:'Taesa (TAEE11)'};
+const FREE = ['PETR4', 'MGLU3', 'VALE3', 'ITUB4'];
+UI.sim2 = UI.sim2 || {asset:'BTC'};
+const assetChart = new Chart($('assetChart'), {type:'line', data:{labels:[], datasets:[
+  {label:'Total aportado', data:[], borderColor:'#6366f1', backgroundColor:'rgba(99,102,241,.1)', fill:true, pointRadius:0, borderWidth:2},
+  {label:'Valor projetado', data:[], borderColor:'#10b981', pointRadius:0, borderWidth:2, tension:.25}]},
+  options:{responsive:true, maintainAspectRatio:false, interaction:{intersect:false, mode:'index'}, plugins:{legend:{labels:{boxWidth:10}}, tooltip:{callbacks:{label:c => c.dataset.label + ': ' + brl.format(c.parsed.y)}}},
+    scales:{x:{grid:{color:'#1e293b'}, ticks:{maxTicksLimit:8}}, y:{grid:{color:'#1e293b'}, ticks:{callback:v => brl.format(v)}}}}});
+function assetCalc(p) {
+  const g = Math.pow(1 + p.ret / 100, 1 / 12) - 1, d = Math.pow(1 + p.dy / 100, 1 / 12) - 1;
+  let qty = 0, price = p.price, inv = 0; const invS = [], valS = [];
+  for (let i = 0; i < p.months; i++) {
+    qty += p.mon / price; inv += p.mon; price *= 1 + g; qty *= 1 + d;
+    invS.push(inv); valS.push(qty * price);
+  }
+  const value = qty * price, gain = value - inv;
+  let tax = 0;
+  if (gain > 0) tax = p.asset === 'BTC' ? (S.btcWhere === 'ext' || value > 35000 ? gain * .15 : 0) : (value > 20000 ? gain * .15 : 0);
+  return {qty, price, inv, value, gain, tax, net:value - tax, invS, valS};
+}
+function assetSim() {
+  const p = {asset:$('a-asset').value, price:+$('a-price').value, mon:+$('a-mon').value || 0, months:Math.min(600, Math.max(1, parseInt($('a-mth').value) || 12)), ret:Math.max(-99, +$('a-ret').value || 0), dy:Math.max(0, +$('a-dy').value || 0)};
+  UI.sim2 = {...UI.sim2, asset:p.asset, price:$('a-price').value, mon:$('a-mon').value, mth:$('a-mth').value, ret:$('a-ret').value, dy:$('a-dy').value}; saveUI();
+  if (!(p.price > 0)) {
+    $('a-out').innerHTML = '<p class="text-sm text-slate-400">Informe a cotação do ativo ou use Atualizar cotação.</p>';
+    assetChart.data.labels = []; assetChart.data.datasets.forEach(d => d.data = []); assetChart.update(); return;
+  }
+  const r = assetCalc(p), btc = p.asset === 'BTC', col = v => v >= 0 ? 'text-emerald-400' : 'text-rose-400';
+  const sc = [['Pessimista (−10 p.p.)', p.ret - 10], ['Base', p.ret], ['Otimista (+10 p.p.)', p.ret + 10]].map(([n, x]) => { const c = assetCalc({...p, ret:Math.max(-99, x)}); return {n, x, net:c.net, g:c.net - c.inv}; });
+  $('a-out').innerHTML = `<div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">${cell('Total aportado', brl.format(r.inv))}${cell('Quantidade acumulada', num(r.qty, btc ? 8 : 2) + (btc ? ' BTC' : ' ações'))}${cell('Preço projetado', brl.format(r.price))}${cell('Valor projetado', brl.format(r.value), 'text-emerald-400')}${cell('Ganho bruto', (r.gain >= 0 ? '+' : '') + brl.format(r.gain), col(r.gain))}${cell('IR estimado', '- ' + brl.format(r.tax), 'text-rose-400')}${cell('Líquido após IR', brl.format(r.net))}${cell('Rentabilidade líquida', r.inv ? num((r.net / r.inv - 1) * 100, 1) + '%' : '—', col(r.net - r.inv))}</div>
+    <div class="grid sm:grid-cols-3 gap-2 mt-3 text-xs">${sc.map(x => `<div class="bg-slate-900 border border-slate-800 rounded-lg p-2"><span class="lbl !mb-0">${x.n}: ${num(x.x, 1)}% a.a.</span><b class="${col(x.g)}">${brl.format(x.net)} (${x.g >= 0 ? '+' : ''}${brl.format(x.g)})</b></div>`).join('')}</div>`;
+  assetChart.data.labels = r.invS.map((_, i) => 'Mês ' + (i + 1));
+  assetChart.data.datasets[0].data = r.invS; assetChart.data.datasets[1].data = r.valS; assetChart.update();
+}
+async function fetchQuote() {
+  const t = $('a-asset').value, st = $('a-status');
+  if (t === 'BTC') { if (M.btc) { $('a-price').value = M.btc.toFixed(2); st.textContent = 'Cotação ao vivo do Bitcoin.'; } else st.textContent = 'Cotação do Bitcoin ainda não carregou.'; assetSim(); return; }
+  const c = UI.q && UI.q[t];
+  if (c && Date.now() - c.at < 30 * 60e3) { $('a-price').value = c.p; UI.sim2.manual = false; st.textContent = t + ': ' + brl.format(c.p) + ' (brapi)'; assetSim(); return; }
+  st.textContent = 'Buscando cotação...';
+  try {
+    const d = await getJson('https://brapi.dev/api/quote/' + t + (UI.brapi ? '?token=' + encodeURIComponent(UI.brapi) : ''));
+    const px = d.results[0].regularMarketPrice;
+    if (!(px > 0)) throw new Error('sem preço');
+    $('a-price').value = px; UI.sim2.manual = false; st.textContent = t + ': ' + brl.format(px) + ' (brapi)';
+  } catch (e) { st.textContent = 'Não consegui a cotação de ' + t + '. Digite o preço' + (FREE.includes(t) ? '.' : ' ou informe seu token da brapi.'); }
+  assetSim();
+}
+function onAsset() {
+  UI.sim2.manual = false; const btc = $('a-asset').value === 'BTC';
+  $('a-dy').disabled = btc; if (btc) $('a-dy').value = 0;
+  $('a-price').value = ''; fetchQuote();
+}
+function syncBtcPrice() { if ($('a-asset').value === 'BTC' && M.btc && !UI.sim2.manual) { $('a-price').value = M.btc.toFixed(2); assetSim(); } }
+function clearAsset() {
+  ['mon', 'mth', 'ret', 'dy', 'price'].forEach(k => $('a-' + k).value = '');
+  UI.sim2 = {asset:$('a-asset').value, manual:false}; saveUI(); $('a-status').textContent = ''; assetSim();
+}
+/* Cotações da bolsa e links de compra */
+const BROKERS = {none:['Escolha sua corretora', ''], xp:['XP Investimentos', 'https://www.xpi.com.br'], btg:['BTG Pactual', 'https://www.btgpactual.com'], rico:['Rico', 'https://www.rico.com.vc'], clear:['Clear', 'https://www.clear.com.br'], inter:['Inter', 'https://inter.co'], nu:['Nubank', 'https://nubank.com.br'], bb:['Banco do Brasil', 'https://www.bb.com.br'], itau:['Itaú', 'https://www.itau.com.br'], custom:['Outra (digitar endereço)', '']};
+const EXCH = {none:['Escolha a exchange', ''], mb:['Mercado Bitcoin', 'https://www.mercadobitcoin.com.br'], binance:['Binance', 'https://www.binance.com/pt-BR'], fox:['Foxbit', 'https://foxbit.com.br']};
+UI.q = UI.q || {};
+const safeUrl = u => { try { const x = new URL(u); return x.protocol === 'https:' ? x.href : ''; } catch (e) { return ''; } };
+const brokerUrl = () => UI.bk === 'custom' ? safeUrl(UI.bu || '') : (BROKERS[UI.bk] ? BROKERS[UI.bk][1] : '');
+const exchUrl = () => EXCH[UI.ex] ? EXCH[UI.ex][1] : '';
+const buyBtn = url => url ? `<a class="chip" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Comprar</a>` : '<span class="text-xs text-slate-500">escolha acima</span>';
+function setBroker() {
+  UI.bk = $('b-broker').value; UI.bu = $('b-url').value.trim(); UI.ex = $('b-exch').value; saveUI();
+  $('b-custom-wrap').classList.toggle('hidden', UI.bk !== 'custom'); renderQuotes();
+}
+function addWatch() {
+  const t = $('q-add').value.trim().toUpperCase();
+  if (!/^[A-Z]{4}\d{1,2}$/.test(t)) { $('q-add').focus(); return; }
+  UI.watch = UI.watch || [];
+  if (!ASSETS[t] && !UI.watch.includes(t)) UI.watch.push(t);
+  if (![...$('a-asset').options].some(o => o.value === t)) $('a-asset').add(new Option(t, t));
+  saveUI(); $('q-add').value = ''; loadQuotes();
+}
+function delWatch(t) { UI.watch = (UI.watch || []).filter(x => x !== t); saveUI(); renderQuotes(); }
+function pickAsset(t) { $('a-asset').value = t; onAsset(); $('a-asset').scrollIntoView({behavior:'smooth', block:'center'}); }
+async function loadQuotes() {
+  const tk = Object.keys(ASSETS).filter(k => k !== 'BTC').concat(UI.watch || []).filter(t => UI.brapi || FREE.includes(t));
+  $('q-note').textContent = 'Buscando cotações...';
+  const tok = UI.brapi ? '?token=' + encodeURIComponent(UI.brapi) : '';
+  const res = await Promise.allSettled(tk.map(t => getJson('https://brapi.dev/api/quote/' + t + tok).then(d => ({t, r:d.results[0]}))));
+  let ok = 0;
+  res.forEach(x => { if (x.status === 'fulfilled' && x.value.r.regularMarketPrice > 0) { ok++; UI.q[x.value.t] = {p:x.value.r.regularMarketPrice, c:x.value.r.regularMarketChangePercent, at:Date.now()}; } });
+  if (ok) UI.qAt = Date.now();
+  saveUI(); renderQuotes();
+  if (!ok) $('q-note').textContent = 'Não consegui buscar as cotações agora (limite do serviço ou sem conexão). Tente de novo em alguns minutos.';
+}
+function renderQuotes() {
+  const bu = brokerUrl(), tk = Object.keys(ASSETS).filter(k => k !== 'BTC').concat(UI.watch || []);
+  const chg = c => c == null ? '' : `<span class="${c >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${c >= 0 ? '▲ +' : '▼ '}${num(c)}%</span>`;
+  const row = (name, price, c, t, buy, extra = '') => `<tr class="border-t border-slate-800"><td class="py-2 pr-3 font-medium whitespace-nowrap">${name}${extra}</td><td class="pr-3 whitespace-nowrap">${price}</td><td class="pr-3 whitespace-nowrap">${chg(c)}</td><td class="pr-3"><button class="chip" onclick="pickAsset('${t}')">Simular</button></td><td>${buy}</td></tr>`;
+  let h = row('Bitcoin', M.btc ? brl.format(M.btc) : '—', M.chg, 'BTC', buyBtn(exchUrl()), ' <span class="text-xs text-slate-500">ao vivo</span>');
+  tk.forEach(t => {
+    const q = UI.q[t], need = !q && !UI.brapi && !FREE.includes(t);
+    h += row(esc(ASSETS[t] || t), q ? brl.format(q.p) : '—', q ? q.c : null, t, buyBtn(bu),
+      need ? ' <span class="text-xs text-slate-500">precisa de token</span>' : (UI.watch || []).includes(t) ? ` <button class="text-slate-500 hover:text-rose-400" aria-label="Remover ${t}" onclick="delWatch('${t}')">✕</button>` : '');
+  });
+  $('q-table').innerHTML = `<table class="w-full text-left"><thead><tr class="text-xs text-slate-400"><th class="pb-1">Ativo</th><th>Cotação</th><th>Dia</th><th>Simulador</th><th>Compra</th></tr></thead><tbody>${h}</tbody></table>`;
+  $('q-note').textContent = UI.qAt ? 'Ações com atraso de cerca de 15 a 30 min. Última busca às ' + new Date(UI.qAt).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) + (UI.brapi ? '.' : '. Sem token, só PETR4, MGLU3, VALE3 e ITUB4 carregam.') : 'Clique em Atualizar cotações.';
+}
 function renderHist() {
   const ev = [];
   S.boxes.forEach(b => { const t = boxCalc(b); b.deps.forEach(d => ev.push({date:d.date, tipo:b.name, amount:d.amount, gain:t.items[d.id].g})); });
@@ -483,10 +647,10 @@ function applyTheme(t) {
   const l = t === 'light', txt = l ? '#475569' : '#94a3b8', grid = l ? '#e2e8f0' : '#1e293b';
   document.documentElement.classList.toggle('light', l);
   Chart.defaults.color = txt;
-  [btcChart, histChart, gainChart].forEach(c => ['x','y'].forEach(a => { c.options.scales[a].grid.color = grid; c.options.scales[a].ticks.color = txt; }));
+  [btcChart, histChart, gainChart, assetChart].forEach(c => ['x','y'].forEach(a => { c.options.scales[a].grid.color = grid; c.options.scales[a].ticks.color = txt; }));
   pie.options.plugins.legend.labels.color = txt;
   pie.data.datasets[0].borderColor = l ? '#fff' : '#0f172a';
-  btcChart.update(); pie.update(); histChart.update(); gainChart.update();
+  btcChart.update(); pie.update(); histChart.update(); gainChart.update(); assetChart.update();
   $('theme-btn').textContent = l ? 'Modo escuro' : 'Modo claro';
   document.querySelector('meta[name=theme-color]').content = l ? '#f1f5f9' : '#020617';
   write('inv-theme', t);
@@ -520,19 +684,32 @@ try {
 function initCollapse() {
   document.querySelectorAll('.card').forEach((c, i) => {
     const h = c.querySelector('h2'); if (!h) return;
+    const key = h.textContent.trim().slice(0, 22);
     const head = h.parentElement === c ? h : h.parentElement, body = [...c.children].filter(x => x !== head);
     if (head === h) h.classList.add('cap');
     const btn = document.createElement('button');
     btn.className = 'chev'; btn.setAttribute('aria-label', 'Recolher ou expandir esta seção'); head.appendChild(btn);
-    const apply = () => { const col = !!UI.collapsed['c' + i]; c.classList.toggle('collapsed', col); body.forEach(x => x.classList.toggle('hidden', col)); btn.textContent = col ? '▸' : '▾'; btn.setAttribute('aria-expanded', String(!col)); };
-    const toggle = () => { UI.collapsed['c' + i] = !UI.collapsed['c' + i]; saveUI(); apply(); window.dispatchEvent(new Event('resize')); };
+    const apply = () => { const col = !!UI.collapsed[key]; c.classList.toggle('collapsed', col); body.forEach(x => x.classList.toggle('hidden', col)); btn.textContent = col ? '▸' : '▾'; btn.setAttribute('aria-expanded', String(!col)); };
+    const toggle = () => { UI.collapsed[key] = !UI.collapsed[key]; saveUI(); apply(); window.dispatchEvent(new Event('resize')); };
     btn.onclick = e => { e.stopPropagation(); toggle(); }; h.onclick = toggle;
     apply();
   });
 }
-$('s-mon').value = UI.sim.mon; $('s-mth').value = UI.sim.months; initCollapse();
+$('s-mon').value = UI.sim.mon; $('s-mth').value = UI.sim.months;
+$('a-asset').innerHTML = Object.entries(ASSETS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+(UI.watch || []).forEach(t => $('a-asset').add(new Option(t, t)));
+$('b-broker').innerHTML = Object.entries(BROKERS).map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join('');
+$('b-exch').innerHTML = Object.entries(EXCH).map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join('');
+$('b-broker').value = UI.bk || 'none'; $('b-url').value = UI.bu || ''; $('b-exch').value = UI.ex || 'none'; $('b-custom-wrap').classList.toggle('hidden', UI.bk !== 'custom');
+{ const A = UI.sim2; $('a-asset').value = A.asset || 'BTC'; ['mon', 'mth', 'ret', 'dy', 'price'].forEach(k => { if (A[k] != null) $('a-' + k).value = A[k]; });
+  $('a-token').value = UI.brapi || ''; $('a-dy').disabled = $('a-asset').value === 'BTC'; }
+$('ver').textContent = VERSION; applyPin(); initCollapse();
 $('d-date').value = today();
 renderMarket(); renderAll(); simulate();
+renderQuotes();
+if (!UI.qAt || Date.now() - UI.qAt > 10 * 60e3) loadQuotes();
+setInterval(() => { if (!document.hidden) loadQuotes(); }, 15 * 60 * 1000);
+if ($('a-asset').value !== 'BTC' && !$('a-price').value) fetchQuote(); else assetSim();
 loadMarket(); loadHistory(); loadCdiHist();
 setInterval(loadMarket, 60000);
 </script>
