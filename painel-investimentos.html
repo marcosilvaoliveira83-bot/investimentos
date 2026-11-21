@@ -129,7 +129,7 @@
       <div class="h-[240px]"><canvas id="histChart" role="img" aria-label="Aportes acumulados e valor atual"></canvas></div>
       <div id="hist-list" class="max-h-[240px] overflow-y-auto divide-y divide-slate-800"></div>
     </div>
-    <p class="text-xs text-slate-500 mt-3">Caixinhas: rendimento líquido de IR e IOF. Bitcoin: resultado bruto. Rendimentos estimados com o CDI atual mantido constante.</p>
+    <p class="text-xs text-slate-500 mt-3">Rendimentos brutos, antes de IR e IOF, como mostram os apps dos bancos. Estimados com o CDI atual mantido constante.</p>
   </div>
 </main>
 
@@ -237,10 +237,16 @@ function runLots(items, b) {
   return lots.map(l => { const g = l.v - l.amount, iof = g * iofRate(l.age), ir = (g - iof) * irRate(l.age);
     return {age:l.age, g, iof, ir, rate:irRate(l.age), tax:iof + ir, net:l.amount + g - iof - ir}; });
 }
+/* Rendimento bruto de um dia sobre o saldo B, respeitando a faixa do limite */
+function dayYield(b, B) {
+  const r = p => Math.pow(1 + M.cdi / 100 * p / 100, 1 / 365) - 1, lim = b.limit > 0 ? b.limit : Infinity;
+  return Math.min(B, lim) * r(b.pct) + Math.max(0, B - lim) * r(b.pct2 ?? 100);
+}
 function boxCalc(b) {
   const res = runLots(b.deps.map(d => ({amount:d.amount, age:daysSince(d.date)})), b);
   const t = {inv:0, g:0, tax:0, net:0, items:{}};
   b.deps.forEach((d, i) => { const c = res[i]; t.items[d.id] = c; t.inv += d.amount; t.g += c.g; t.tax += c.tax; t.net += c.net; });
+  t.day = dayYield(b, t.inv + t.g);
   return t;
 }
 const cell = (l, v, c = '') => `<div class="bg-slate-900 border border-slate-800 rounded-lg p-2"><span class="lbl !mb-0">${l}</span><b class="${c}">${v}</b></div>`;
@@ -248,7 +254,7 @@ function renderBoxes() {
   $('boxes').innerHTML = S.boxes.map((b, i) => {
     const t = boxCalc(b);
     const rows = b.deps.slice().sort((x, y) => y.date.localeCompare(x.date)).map(d => { const c = t.items[d.id];
-      return `<div class="flex justify-between items-center py-1.5 gap-2 text-xs"><span class="text-slate-400">${fd(d.date)}</span><span>${brl.format(d.amount)}</span><span class="text-emerald-400">+${brl.format(c.g - c.tax)}</span><span class="text-slate-500">${c.age}d · IR ${num(c.rate * 100, 1)}%${c.iof > 0 ? ' + IOF' : ''}</span><button class="text-slate-500 hover:text-rose-400" aria-label="Remover aporte" onclick="delDep(${b.id},${d.id})">✕</button></div>`; }).join('');
+      return `<div class="flex justify-between items-center py-1.5 gap-2 text-xs"><span class="text-slate-400">${fd(d.date)}</span><span>${brl.format(d.amount)}</span><span class="text-emerald-400">+${brl.format(c.g)}</span><span class="text-slate-500">${c.age}d · IR ${num(c.rate * 100, 1)}%${c.iof > 0 ? ' + IOF' : ''}</span><button class="text-slate-500 hover:text-rose-400" aria-label="Remover aporte" onclick="delDep(${b.id},${d.id})">✕</button></div>`; }).join('');
     return `<div class="bg-slate-950 border border-slate-800 rounded-xl p-3" style="border-left:4px solid ${COLORS[i % COLORS.length]}">
       <div class="flex gap-2 mb-2">
         <input class="inp" aria-label="Nome" value="${esc(b.name)}" onchange="upd(${b.id},'name',this.value)">
@@ -259,7 +265,7 @@ function renderBoxes() {
         <div><label class="lbl">Limite (R$; 0 = sem)</label><input class="inp" type="number" min="0" step="100" aria-label="Limite em reais" value="${b.limit}" onchange="upd(${b.id},'limit',+this.value||0)"></div>
         <div><label class="lbl">% CDI acima</label><input class="inp" type="number" min="0" step="0.5" aria-label="% do CDI acima do limite" value="${b.pct2}" onchange="upd(${b.id},'pct2',+this.value||0)"></div>
       </div>
-      <div class="grid grid-cols-2 gap-2 text-sm">${cell('Total aportado', brl.format(t.inv))}${cell('Rendimento bruto', brl.format(t.g))}${cell('IR + IOF estimados', '- ' + brl.format(t.tax), 'text-rose-400')}${cell('Total líquido', brl.format(t.net), 'text-emerald-400')}</div>
+      <div class="grid grid-cols-2 gap-2 text-sm">${cell('Saldo atual', brl.format(t.inv + t.g), 'text-emerald-400')}${cell('Total aportado', brl.format(t.inv))}${cell('Rendimento acumulado', '+' + brl.format(t.g), 'text-emerald-400')}${cell('Rende por dia (média)', '≈ ' + brl.format(t.day))}${cell('IR + IOF se resgatar hoje', '- ' + brl.format(t.tax), 'text-rose-400')}${cell('Líquido se resgatar hoje', brl.format(t.net))}</div>
       ${b.limit > 0 ? `<p class="text-xs text-slate-400 mt-2">Saldo atual ${brl.format(t.inv + t.g)}: ${brl.format(Math.min(t.inv + t.g, b.limit))} a ${b.pct}% e ${brl.format(Math.max(0, t.inv + t.g - b.limit))} a ${b.pct2}% do CDI.</p>` : ''}
       <div class="flex gap-2 mt-3 items-end">
         <div class="w-2/5"><label class="lbl" for="dd-${b.id}">Data</label><input id="dd-${b.id}" type="date" class="inp" value="${today()}"></div>
@@ -339,7 +345,7 @@ function renderDca() {
 const pie = new Chart($('pie'), {type:'doughnut', data:{labels:[], datasets:[{data:[], backgroundColor:[], borderColor:'#0f172a'}]},
   options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{boxWidth:10, font:{size:11}}}, tooltip:{callbacks:{label:c => c.label + ': ' + brl.format(c.parsed)}}}}});
 function renderPie() {
-  const s = dcaStats(), labels = S.boxes.map(b => b.name), data = S.boxes.map(b => boxCalc(b).net);
+  const s = dcaStats(), labels = S.boxes.map(b => b.name), data = S.boxes.map(b => { const t = boxCalc(b); return t.inv + t.g; });
   const cols = S.boxes.map((_, i) => COLORS[i % COLORS.length]);
   if (s.val > 0) { labels.push('Bitcoin'); data.push(s.val); cols.push('#f59e0b'); }
   pie.data.labels = labels; pie.data.datasets[0].data = data; pie.data.datasets[0].backgroundColor = cols; pie.update();
@@ -352,7 +358,7 @@ const histChart = new Chart($('histChart'), {type:'line', data:{labels:[], datas
     scales:{x:{grid:{color:'#1e293b'}, ticks:{maxTicksLimit:6}}, y:{grid:{color:'#1e293b'}, ticks:{callback:v => brl.format(v)}}}}});
 function renderHist() {
   const ev = [];
-  S.boxes.forEach(b => { const t = boxCalc(b); b.deps.forEach(d => ev.push({date:d.date, tipo:b.name, amount:d.amount, gain:t.items[d.id].net - d.amount})); });
+  S.boxes.forEach(b => { const t = boxCalc(b); b.deps.forEach(d => ev.push({date:d.date, tipo:b.name, amount:d.amount, gain:t.items[d.id].g})); });
   S.dca.forEach(x => ev.push({date:x.date, tipo:'Bitcoin', amount:x.brl, gain:M.btc ? x.brl / x.price * M.btc - x.brl : 0}));
   ev.sort((a, b) => a.date.localeCompare(b.date));
   const inv = ev.reduce((a, e) => a + e.amount, 0), gain = ev.reduce((a, e) => a + e.gain, 0);
