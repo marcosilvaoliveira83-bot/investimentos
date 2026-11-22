@@ -108,6 +108,12 @@
           <div><label class="lbl" for="d-price">Preço do BTC</label><input id="d-price" type="number" min="0" step="0.01" class="inp" placeholder="preço atual"></div>
         </div>
         <button class="btn mt-3 w-full" onclick="addDca()">Registrar compra</button>
+        <div class="grid grid-cols-3 gap-2 mt-3">
+          <div><label class="lbl" for="sl-date">Data da venda</label><input id="sl-date" type="date" class="inp"></div>
+          <div><label class="lbl" for="sl-brl">Valor vendido (R$)</label><input id="sl-brl" type="number" min="0" step="0.01" class="inp"></div>
+          <div><label class="lbl" for="sl-price">Preço do BTC</label><input id="sl-price" type="number" min="0" step="0.01" class="inp" placeholder="preço atual"></div>
+        </div>
+        <button class="btn mt-2 w-full !bg-rose-500 hover:!bg-rose-400 !text-white" onclick="addSale()">Registrar venda</button>
         <div id="dca-sum" class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4 text-sm"></div>
         <div id="dca-list" class="mt-3 max-h-48 overflow-y-auto text-sm divide-y divide-slate-800"></div>
         <button class="text-xs text-slate-500 hover:text-rose-400 mt-2 underline" onclick="clearDca()">Apagar todas as compras</button>
@@ -148,12 +154,12 @@
   </div>
   <div class="card lg:col-span-3">
     <h2>Histórico de aportes e rendimentos</h2>
-    <div id="hist-sum" class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm mb-4"></div>
+    <div id="hist-sum" class="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm mb-4"></div>
     <div class="grid md:grid-cols-2 gap-6">
       <div class="h-[240px]"><canvas id="histChart" role="img" aria-label="Aportes acumulados e valor atual"></canvas></div>
       <div id="hist-list" class="max-h-[240px] overflow-y-auto divide-y divide-slate-800"></div>
     </div>
-    <p class="text-xs text-slate-500 mt-3">Rendimentos brutos, antes de IR e IOF, como mostram os apps dos bancos. Dias passados usam o CDI diário real do Banco Central; o futuro usa o CDI atual.</p>
+    <p class="text-xs text-slate-500 mt-3">Rendimentos brutos, antes de IR e IOF, como mostram os apps dos bancos. Dias passados usam o CDI diário real do Banco Central; o futuro usa o CDI atual. Nas retiradas e vendas, o ganho mostrado é o realizado na data.</p>
   </div>
   <div class="card lg:col-span-3">
     <h2>Simulador de Bitcoin e ações</h2>
@@ -243,14 +249,14 @@ const fd = s => s.split('-').reverse().join('/');
 const IOF = [96,93,90,86,83,80,76,73,70,66,63,60,56,53,50,46,43,40,36,33,30,26,23,20,16,13,10,6,3,0];
 const iofRate = d => d >= 30 ? 0 : IOF[Math.max(1, d) - 1] / 100;
 let S = read('inv-v2', {boxes:[{id:1,name:'Mercado Pago',pct:120,limit:10000,pct2:100,deps:[]},{id:2,name:'Nubank',pct:115,limit:5000,pct2:100,deps:[]}], dca:[], btcWhere:'br'});
-S.btcWhere = S.btcWhere || 'br';
-S.boxes.forEach(b => { b.deps = b.deps || []; if (b.limit === undefined) { b.limit = /mercado/i.test(b.name) ? 10000 : /nubank/i.test(b.name) ? 5000 : 0; b.pct2 = 100; } if (b.balance > 0) b.deps.push({id:Date.now() + b.id, date:today(), amount:b.balance}); delete b.balance; });
+S.btcWhere = S.btcWhere || 'br'; S.sales = S.sales || [];
+S.boxes.forEach(b => { b.deps = b.deps || []; b.wds = b.wds || []; if (b.limit === undefined) { b.limit = /mercado/i.test(b.name) ? 10000 : /nubank/i.test(b.name) ? 5000 : 0; b.pct2 = 100; } if (b.balance > 0) b.deps.push({id:Date.now() + b.id, date:today(), amount:b.balance}); delete b.balance; });
 const openBoxes = new Set(S.boxes.map(b => b.id));
 let CDIH = read('inv-cdi', {});
 let UI = read('inv-ui', {});
 UI.sim = UI.sim || {mon:500, months:12}; UI.collapsed = UI.collapsed || {};
 const saveUI = () => write('inv-ui', UI);
-const VERSION = '2.1.0 · nov/2026';
+const VERSION = '2.2.0 · nov/2026';
 const LOSS = '<span class="inline-flex items-center gap-1 text-xs text-rose-400 font-normal ml-2 whitespace-nowrap"><span class="inline-block w-2 h-2 rounded-full bg-rose-400 animate-pulse"></span>prejuízo</span>';
 function applyPin() { const p = UI.pin !== false; $('topbar').classList.toggle('pin', p); $('pin-btn').textContent = p ? 'Fixo' : 'Solto'; $('pin-btn').setAttribute('aria-pressed', String(p)); }
 function togglePin() { UI.pin = (UI.pin === false); saveUI(); applyPin(); }
@@ -361,13 +367,26 @@ async function loadCdiHist() {
   } catch (e) {}
 }
 /* Simulação diária: o ganho de cada dia é dividido entre os aportes na proporção do saldo (o aporte só rende a partir do dia seguinte). Até o limite rende pct% do CDI; acima, pct2%. */
-function runLots(items, b, end) {
+function runLots(items, b, end, wds) {
   end = end || today();
-  const lots = items.map(x => ({...x, v:x.amount, age:Math.max(0, Math.round((new Date(end + 'T12:00:00') - new Date(x.start + 'T12:00:00')) / 864e5))}));
-  if (!lots.length) return [];
+  const dd = (a, c) => Math.max(0, Math.round((new Date(c + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5));
+  const lots = items.map(x => ({...x, v:x.amount, a:x.amount}));
+  if (!lots.length) { const e = []; e.real = []; return e; }
   const lim = b.limit > 0 ? b.limit : Infinity, p1 = b.pct / 100, p2 = (b.pct2 ?? 100) / 100;
-  let d = lots.reduce((m, l) => l.start < m ? l.start : m, end);
+  const W = (wds || []).filter(w => w.date <= end).map(w => ({...w})).sort((x, y) => x.date.localeCompare(y.date)), real = [];
+  /* retirada: sai primeiro o aporte mais antigo; IR e IOF são calculados na data da retirada */
+  const doW = (w, d) => {
+    let need = w.amount, taken = 0, prin = 0, gain = 0, tax = 0;
+    lots.filter(l => l.start <= d && l.v > 1e-9).sort((x, y) => x.start.localeCompare(y.start)).forEach(l => {
+      if (need <= 1e-9) return;
+      const t = Math.min(l.v, need), fr = t / l.v, pr = l.a * fr, g = t - pr, age = dd(l.start, d), iof = g * iofRate(age), ir = (g - iof) * irRate(age);
+      l.v -= t; l.a -= pr; need -= t; taken += t; prin += pr; gain += g; tax += iof + ir;
+    });
+    real.push({id:w.id, date:w.date, req:w.amount, taken, prin, gain, tax, net:taken - tax});
+  };
+  let d = lots.reduce((m, l) => l.start < m ? l.start : m, end), wi = 0;
   while (d < end) {
+    while (wi < W.length && W[wi].date <= d) doW(W[wi++], d);
     const r = dayRate(d);
     if (r) {
       const act = lots.filter(l => l.start < d), B = act.reduce((a, l) => a + l.v, 0);
@@ -375,8 +394,10 @@ function runLots(items, b, end) {
     }
     d = addDays(d, 1);
   }
-  return lots.map(l => { const g = l.v - l.amount, iof = g * iofRate(l.age), ir = (g - iof) * irRate(l.age);
-    return {age:l.age, g, iof, ir, rate:irRate(l.age), tax:iof + ir, net:l.amount + g - iof - ir}; });
+  while (wi < W.length) doW(W[wi++], end);
+  const out = lots.map(l => { const age = dd(l.start, end), g = l.v - l.a, iof = g * iofRate(age), ir = (g - iof) * irRate(age);
+    return {age, g, v:l.v, principal:l.a, iof, ir, rate:irRate(age), tax:iof + ir, net:l.v - iof - ir}; });
+  out.real = real; return out;
 }
 /* Rendimento bruto por dia útil sobre o saldo B, respeitando a faixa do limite */
 function dayYield(b, B) {
@@ -384,10 +405,11 @@ function dayYield(b, B) {
   return r * (Math.min(B, lim) * b.pct / 100 + Math.max(0, B - lim) * (b.pct2 ?? 100) / 100);
 }
 function boxCalc(b) {
-  const res = runLots(b.deps.map(d => ({amount:d.amount, start:d.date})), b);
-  const t = {inv:0, g:0, tax:0, net:0, items:{}};
-  b.deps.forEach((d, i) => { const c = res[i]; t.items[d.id] = c; t.inv += d.amount; t.g += c.g; t.tax += c.tax; t.net += c.net; });
-  t.day = dayYield(b, t.inv + t.g);
+  const res = runLots(b.deps.map(d => ({amount:d.amount, start:d.date})), b, null, b.wds);
+  const t = {dep:0, bal:0, unr:0, tax:0, net:0, wd:0, wdGain:0, wdTax:0, wdNet:0, items:{}, wds:{}};
+  b.deps.forEach((d, i) => { const c = res[i]; t.items[d.id] = c; t.dep += d.amount; t.bal += c.v; t.unr += c.g; t.tax += c.tax; t.net += c.net; });
+  (res.real || []).forEach(r => { t.wds[r.id] = r; t.wd += r.taken; t.wdGain += r.gain; t.wdTax += r.tax; t.wdNet += r.net; });
+  t.inv = t.dep; t.g = t.unr + t.wdGain; t.day = dayYield(b, t.bal);
   return t;
 }
 const cell = (l, v, c = '') => `<div class="bg-slate-900 border border-slate-800 rounded-lg p-2"><span class="lbl !mb-0">${l}</span><b class="${c}">${v}</b></div>`;
@@ -395,7 +417,9 @@ function renderBoxes() {
   $('boxes').innerHTML = S.boxes.map((b, i) => {
     const t = boxCalc(b);
     const rows = b.deps.slice().sort((x, y) => y.date.localeCompare(x.date)).map(d => { const c = t.items[d.id];
-      return `<div class="py-2 text-xs"><div class="flex gap-2 items-center"><input type="date" class="inp !py-1" value="${d.date}" aria-label="Data do aporte" onchange="editDep(${b.id},${d.id},'date',this.value)"><input type="number" min="0" step="0.01" class="inp !py-1" value="${d.amount}" aria-label="Valor do aporte" onchange="editDep(${b.id},${d.id},'amount',+this.value)"><button class="text-slate-500 hover:text-rose-400 px-1" aria-label="Remover aporte" onclick="delDep(${b.id},${d.id})">✕</button></div><div class="flex justify-between text-slate-400 mt-1"><span class="text-emerald-400">+${brl.format(c.g)}</span><span>${c.age}d · IR ${num(c.rate * 100, 1)}%${c.iof > 0 ? ' + IOF' : ''}</span></div></div>`; }).join('');
+      return `<div class="py-2 text-xs"><div class="flex gap-2 items-center"><input type="date" class="inp !py-1" value="${d.date}" aria-label="Data do aporte" onchange="editDep(${b.id},${d.id},'date',this.value)"><input type="number" min="0" step="0.01" class="inp !py-1" value="${d.amount}" aria-label="Valor do aporte" onchange="editDep(${b.id},${d.id},'amount',+this.value)"><button class="text-slate-500 hover:text-rose-400 px-1" aria-label="Remover aporte" onclick="delDep(${b.id},${d.id})">✕</button></div><div class="flex justify-between text-slate-400 mt-1"><span class="text-slate-400">saldo ${brl.format(c.v)} · <span class="text-emerald-400">+${brl.format(c.g)}</span></span><span>${c.age}d · IR ${num(c.rate * 100, 1)}%${c.iof > 0 ? ' + IOF' : ''}</span></div></div>`; }).join('');
+    const wrows = (b.wds || []).slice().sort((x, y) => y.date.localeCompare(x.date)).map(w => { const r = t.wds[w.id] || {gain:0, tax:0, net:0, taken:0};
+      return `<div class="py-2 text-xs"><div class="flex gap-2 items-center"><span class="text-rose-400 shrink-0">Retirada</span><input type="date" class="inp !py-1" value="${w.date}" aria-label="Data da retirada" onchange="editWd(${b.id},${w.id},'date',this.value)"><input type="number" min="0" step="0.01" class="inp !py-1" value="${w.amount}" aria-label="Valor da retirada" onchange="editWd(${b.id},${w.id},'amount',+this.value)"><button class="text-slate-500 hover:text-rose-400 px-1" aria-label="Remover retirada" onclick="delWd(${b.id},${w.id})">✕</button></div><div class="flex justify-between text-slate-400 mt-1"><span>lucro ${brl.format(r.gain)} · IR/IOF - ${brl.format(r.tax)}</span><span>recebido ${brl.format(r.net)}</span></div>${r.taken < w.amount - 0.005 ? '<p class="text-amber-400 mt-1">Saldo insuficiente na data: saíram só ' + brl.format(r.taken) + '.</p>' : ''}</div>`; }).join('');
     return `<div class="bg-slate-950 border border-slate-800 rounded-xl p-3" style="border-left:4px solid ${COLORS[i % COLORS.length]}">
       <div class="flex gap-2 mb-2">
         <input class="inp" aria-label="Nome" value="${esc(b.name)}" onchange="upd(${b.id},'name',this.value)">${t.g > 0.005 ? FLAG : ''}
@@ -406,18 +430,24 @@ function renderBoxes() {
         <div><label class="lbl">Limite (R$; 0 = sem)</label><input class="inp" type="number" min="0" step="100" aria-label="Limite em reais" value="${b.limit}" onchange="upd(${b.id},'limit',+this.value||0)"></div>
         <div><label class="lbl">% CDI acima</label><input class="inp" type="number" min="0" step="0.5" aria-label="% do CDI acima do limite" value="${b.pct2}" onchange="upd(${b.id},'pct2',+this.value||0)"></div>
       </div>
-      <div class="grid grid-cols-2 gap-2 text-sm">${cell('Saldo atual', brl.format(t.inv + t.g), 'text-emerald-400')}${cell('Total aportado', brl.format(t.inv))}${cell('Rendimento acumulado', '+' + brl.format(t.g), 'text-emerald-400')}${cell('Rende por dia útil', '≈ ' + brl.format(t.day))}${cell('IR + IOF se resgatar hoje', '- ' + brl.format(t.tax), 'text-rose-400')}${cell('Líquido se resgatar hoje', brl.format(t.net))}</div>
-      ${b.limit > 0 ? `<p class="text-xs text-slate-400 mt-2">Saldo atual ${brl.format(t.inv + t.g)}: ${brl.format(Math.min(t.inv + t.g, b.limit))} a ${b.pct}% e ${brl.format(Math.max(0, t.inv + t.g - b.limit))} a ${b.pct2}% do CDI.</p>` : ''}
+      <div class="grid grid-cols-2 gap-2 text-sm">${cell('Saldo atual', brl.format(t.bal), 'text-emerald-400')}${cell('Total aportado', brl.format(t.dep))}${t.wd > 0 ? cell('Total retirado', brl.format(t.wd)) : ''}${cell('Rendimento acumulado', (t.g >= 0 ? '+' : '') + brl.format(t.g), t.g >= 0 ? 'text-emerald-400' : 'text-rose-400')}${cell('Rende por dia útil', '≈ ' + brl.format(t.day))}${cell('IR + IOF se resgatar hoje', '- ' + brl.format(t.tax), 'text-rose-400')}${cell('Líquido se resgatar hoje', brl.format(t.net))}${t.wd > 0 ? cell('IR + IOF já pagos', '- ' + brl.format(t.wdTax), 'text-rose-400') : ''}</div>
+      ${b.limit > 0 ? `<p class="text-xs text-slate-400 mt-2">Saldo atual ${brl.format(t.bal)}: ${brl.format(Math.min(t.bal, b.limit))} a ${b.pct}% e ${brl.format(Math.max(0, t.bal - b.limit))} a ${b.pct2}% do CDI.</p>` : ''}
       <div class="flex gap-2 mt-3 items-end">
         <div class="w-2/5"><label class="lbl" for="dd-${b.id}">Data</label><input id="dd-${b.id}" type="date" class="inp" value="${today()}"></div>
         <div class="flex-1"><label class="lbl" for="da-${b.id}">Valor (R$)</label><input id="da-${b.id}" type="number" min="0" step="0.01" class="inp"></div>
         <button class="btn" onclick="addDep(${b.id})">Aportar</button>
       </div>
+      <div class="flex gap-2 mt-2 items-end">
+        <div class="w-2/5"><label class="lbl" for="wd-${b.id}">Data da retirada</label><input id="wd-${b.id}" type="date" class="inp" value="${today()}"></div>
+        <div class="flex-1"><label class="lbl" for="wa-${b.id}">Valor retirado (R$)</label><input id="wa-${b.id}" type="number" min="0" step="0.01" class="inp"></div>
+        <button class="btn !bg-rose-500 hover:!bg-rose-400 !text-white" onclick="addWd(${b.id})">Retirar</button>
+      </div>
+      <p class="text-xs text-slate-500 mt-1">A retirada sai primeiro do dinheiro mais antigo (PEPS), com IR e IOF calculados na data dela.</p>
       <details class="mt-2" ${openBoxes.has(b.id) ? 'open' : ''} ontoggle="tog(${b.id},this.open)">
-        <summary class="text-xs text-slate-400 cursor-pointer">Aportes (${b.deps.length})</summary>
-        <div class="divide-slate-800 divide-y">${rows || '<p class="text-xs text-slate-400 py-2">Nenhum aporte ainda.</p>'}</div>
+        <summary class="text-xs text-slate-400 cursor-pointer">Aportes (${b.deps.length}) · Retiradas (${(b.wds || []).length})</summary>
+        <div class="divide-slate-800 divide-y">${rows || '<p class="text-xs text-slate-400 py-2">Nenhum aporte ainda.</p>'}${wrows}</div>
       </details>
-      <button class="text-xs text-slate-500 hover:text-rose-400 mt-2 underline" onclick="clearBox(${b.id})">Apagar todos os aportes</button></div>`;
+      <button class="text-xs text-slate-500 hover:text-rose-400 mt-2 underline" onclick="clearBox(${b.id})">Apagar aportes e retiradas</button></div>`;
   }).join('') || '<p class="text-sm text-slate-400">Nenhuma caixinha. Adicione a primeira.</p>';
 }
 function tog(id, o) { o ? openBoxes.add(id) : openBoxes.delete(id); }
@@ -434,7 +464,18 @@ function editDep(bid, did, k, v) {
   if (d && (k === 'date' ? v : v > 0)) { d[k] = v; save(); }
   renderAll(); loadCdiHist();
 }
-function clearBox(id) { const b = S.boxes.find(x => x.id === id); if (!b || !confirm('Apagar todos os aportes desta caixinha?')) return; b.deps = []; save(); renderAll(); }
+function addWd(id) {
+  const b = S.boxes.find(x => x.id === id), amount = +$('wa-' + id).value, date = $('wd-' + id).value || today();
+  if (!b || !(amount > 0)) { $('wa-' + id).focus(); return; }
+  (b.wds = b.wds || []).push({id:Date.now(), date, amount}); openBoxes.add(id); save(); renderAll();
+}
+function delWd(bid, wid) { const b = S.boxes.find(x => x.id === bid); if (b) b.wds = (b.wds || []).filter(w => w.id !== wid); save(); renderAll(); }
+function editWd(bid, wid, k, v) {
+  const b = S.boxes.find(x => x.id === bid), w = b && (b.wds || []).find(x => x.id === wid);
+  if (w && (k === 'date' ? v : v > 0)) { w[k] = v; save(); }
+  renderAll();
+}
+function clearBox(id) { const b = S.boxes.find(x => x.id === id); if (!b || !confirm('Apagar todos os aportes e retiradas desta caixinha?')) return; b.deps = []; b.wds = []; save(); renderAll(); }
 function resetAll() { if (!confirm('Apagar TODOS os dados deste painel neste aparelho?')) return; try { localStorage.removeItem('inv-v2'); } catch (e) {} location.reload(); }
 function delDep(bid, did) { const b = S.boxes.find(x => x.id === bid); if (b) b.deps = b.deps.filter(d => d.id !== did); save(); renderAll(); }
 
@@ -443,13 +484,10 @@ function project(b, mon, months) {
   const t0 = boxCalc(b), end = addDays(today(), months * 30);
   const items = b.deps.map(d => ({amount:d.amount, start:d.date}));
   for (let i = 0; i < months; i++) items.push({amount:mon, start:addDays(today(), i * 30)});
-  const res = runLots(items, b, end);
-  const gross = res.reduce((a, c) => a + c.g, 0), tax = res.reduce((a, c) => a + c.tax, 0), invested = t0.inv + mon * months;
-  return {now:t0.inv + t0.g, invested, gross, tax, net:invested + gross - tax, gain:invested + gross - tax - invested};
-}
-function clearSim() {
-  $('s-mon').value = ''; $('s-mth').value = ''; UI.sim = {mon:'', months:''}; saveUI();
-  $('sim').innerHTML = '<p class="md:col-span-2 text-slate-400">Informe o aporte mensal e o prazo para simular.</p>';
+  const res = runLots(items, b, end, b.wds), real = res.real || [];
+  const bal = res.reduce((a, c) => a + c.v, 0), tax = res.reduce((a, c) => a + c.tax, 0), netRem = res.reduce((a, c) => a + c.net, 0), got = real.reduce((a, r) => a + r.net, 0);
+  const invested = t0.dep + mon * months;
+  return {now:t0.bal, invested, bal, tax, net:netRem, gain:netRem + got - invested};
 }
 function simulate() {
   if ($('s-mon').value === '' && $('s-mth').value === '') { clearSim(); return; }
@@ -462,24 +500,41 @@ function simulate() {
     rows.map((r, i) => `<div class="bg-slate-950 border ${i === 0 ? 'border-emerald-500/50' : 'border-slate-800'} rounded-xl p-3 space-y-1">
       <div class="flex justify-between font-medium"><span>${esc(r.b.name)}</span>${i === 0 ? '<span class="text-emerald-400 text-xs">maior ganho</span>' : ''}</div>
       <p class="text-xs text-slate-500">${r.b.pct}%${r.b.limit > 0 ? ' até ' + brl.format(r.b.limit) + ', ' + r.b.pct2 + '% acima' : ' do CDI'}</p>
-      ${line('Saldo hoje', brl.format(r.now))}${line('Aportado até o fim', brl.format(r.invested))}${line('Saldo projetado (bruto)', brl.format(r.invested + r.gross))}${line('IR + IOF no resgate', '- ' + brl.format(r.tax), 'text-rose-400')}
+      ${line('Saldo hoje', brl.format(r.now))}${line('Aportado até o fim', brl.format(r.invested))}${line('Saldo projetado (bruto)', brl.format(r.bal))}${line('IR + IOF no resgate', '- ' + brl.format(r.tax), 'text-rose-400')}
       <div class="flex justify-between font-bold pt-1 border-t border-slate-800"><span>Total líquido</span><span class="text-emerald-400">${brl.format(r.net)}</span></div>
       ${line('Ganho líquido no total', '+' + brl.format(r.gain), 'text-emerald-400')}</div>`).join('');
 }
 
-/* DCA de Bitcoin */
+/* DCA de Bitcoin: compras e vendas (custo médio) */
 function addDca() {
   const v = +$('d-brl').value, price = +$('d-price').value || M.btc, date = $('d-date').value;
   if (!(v > 0) || !price || !date) { $('d-brl').focus(); return; }
   S.dca.push({id:Date.now(), date, brl:v, price}); save();
   $('d-brl').value = ''; $('d-price').value = ''; renderAll();
 }
-function clearDca() { if (!S.dca.length || !confirm('Apagar todas as compras de Bitcoin?')) return; S.dca = []; save(); renderAll(); }
+function addSale() {
+  const v = +$('sl-brl').value, price = +$('sl-price').value || M.btc, date = $('sl-date').value;
+  if (!(v > 0) || !price || !date) { $('sl-brl').focus(); return; }
+  S.sales.push({id:Date.now(), date, brl:v, price}); save();
+  $('sl-brl').value = ''; $('sl-price').value = ''; renderAll();
+}
+function clearDca() { if (!S.dca.length && !S.sales.length) return; if (!confirm('Apagar todas as compras e vendas de Bitcoin?')) return; S.dca = []; S.sales = []; save(); renderAll(); }
 function delDca(id) { S.dca = S.dca.filter(x => x.id !== id); save(); renderAll(); }
+function delSale(id) { S.sales = S.sales.filter(x => x.id !== id); save(); renderAll(); }
 function dcaStats() {
-  const inv = S.dca.reduce((a, x) => a + x.brl, 0), btc = S.dca.reduce((a, x) => a + x.brl / x.price, 0);
-  const val = M.btc ? btc * M.btc : 0;
-  return {inv, btc, avg: btc ? inv / btc : 0, val, pl: val - inv, plp: inv ? (val - inv) / inv * 100 : 0};
+  const ev = [...S.dca.map(x => ({...x, t:'b'})), ...S.sales.map(x => ({...x, t:'s'}))].sort((a, b) => a.date.localeCompare(b.date) || (a.t === 'b' ? -1 : 1));
+  let q = 0, cost = 0, bought = 0, proceeds = 0, real = 0; const byMonth = {}, salesInfo = {};
+  ev.forEach(e => {
+    if (e.t === 'b') { q += e.brl / e.price; cost += e.brl; bought += e.brl; return; }
+    const want = e.brl / e.price, sq = Math.min(q, want), avg = q ? cost / q : 0, c = sq * avg, pr = sq * e.price, g = pr - c, m = e.date.slice(0, 7);
+    q -= sq; cost -= c; proceeds += pr; real += g;
+    byMonth[m] = byMonth[m] || {pr:0, g:0}; byMonth[m].pr += pr; byMonth[m].g += g;
+    salesInfo[e.id] = {pr, g, short:sq < want - 1e-12};
+  });
+  const val = M.btc ? q * M.btc : 0;
+  let saleTax = 0;
+  Object.values(byMonth).forEach(m => { if (m.g > 0 && (S.btcWhere === 'ext' || m.pr > 35000)) saleTax += m.g * .15; });
+  return {inv:cost, bought, btc:q, avg:q ? cost / q : 0, val, pl:val - cost, plp:cost ? (val - cost) / cost * 100 : 0, real, proceeds, saleTax, salesInfo, life:val + proceeds - bought};
 }
 function btcTax(s) {
   const gain = Math.max(0, s.val - s.inv);
@@ -487,14 +542,18 @@ function btcTax(s) {
   return s.val > 35000 ? {tax: gain * .15, note: 'Brasil: vender mais de R$ 35 mil no mês tributa o lucro em 15%.'} : {tax: 0, note: 'Brasil: vendas até R$ 35 mil no mês têm o lucro isento.'};
 }
 function renderDca() {
-  const s = dcaStats(), t = btcTax(s), cls = s.pl >= 0 ? 'text-emerald-400' : 'text-rose-400';
-  $('btc-flag').innerHTML = !M.btc ? '' : s.pl > 0.005 ? FLAG : s.pl < -0.005 ? LOSS : '';
-  $('dca-sum').innerHTML = cell('Investido', brl.format(s.inv)) + cell('Total atual', M.btc ? brl.format(s.val) : '—', 'text-emerald-400') + cell('Quantidade', num(s.btc, 8) + ' BTC') +
+  const s = dcaStats(), t = btcTax(s), cls = s.pl >= 0 ? 'text-emerald-400' : 'text-rose-400', sold = S.sales.length > 0;
+  $('btc-flag').innerHTML = !M.btc ? '' : s.life > 0.005 ? FLAG : s.life < -0.005 ? LOSS : '';
+  $('dca-sum').innerHTML = cell('Investido (custo)', brl.format(s.inv)) + cell('Total atual', M.btc ? brl.format(s.val) : '—', 'text-emerald-400') + cell('Quantidade', num(s.btc, 8) + ' BTC') +
     cell('Preço médio', s.avg ? brl.format(s.avg) : '—') + cell('Em sats', Math.round(s.btc * 1e8).toLocaleString('pt-BR')) +
     cell('Resultado bruto', M.btc && s.inv ? (s.pl >= 0 ? '+' : '') + brl.format(s.pl) + ' (' + num(s.plp, 1) + '%)' : '—', cls) +
     cell('IR se vender tudo hoje', M.btc ? brl.format(t.tax) : '—', 'text-rose-400') + cell('Líquido após IR', M.btc ? brl.format(s.val - t.tax) : '—') +
-    `<div class="col-span-2 md:col-span-4 text-xs text-slate-400"><label for="d-where">Onde você compra: </label><select id="d-where" class="inp !w-auto !py-1" onchange="S.btcWhere=this.value;save();renderAll()"><option value="br" ${S.btcWhere === 'br' ? 'selected' : ''}>Corretora no Brasil</option><option value="ext" ${S.btcWhere === 'ext' ? 'selected' : ''}>Corretora no exterior</option></select><p class="mt-1">${t.note} Estimativa simples (sem custos nem vendas anteriores); confirme com a Receita ou um contador.</p></div>`;
-  $('dca-list').innerHTML = S.dca.slice().sort((a, b) => b.date.localeCompare(a.date)).map(x => {
+    (sold ? cell('Total vendido', brl.format(s.proceeds)) + cell('Lucro realizado', (s.real >= 0 ? '+' : '') + brl.format(s.real), s.real >= 0 ? 'text-emerald-400' : 'text-rose-400') + cell('IR estimado nas vendas', '- ' + brl.format(s.saleTax), 'text-rose-400') : '') +
+    `<div class="col-span-2 md:col-span-4 text-xs text-slate-400"><label for="d-where">Onde você compra: </label><select id="d-where" class="inp !w-auto !py-1" onchange="S.btcWhere=this.value;save();renderAll()"><option value="br" ${S.btcWhere === 'br' ? 'selected' : ''}>Corretora no Brasil</option><option value="ext" ${S.btcWhere === 'ext' ? 'selected' : ''}>Corretora no exterior</option></select><p class="mt-1">${t.note} Estimativa simples (custo médio, sem taxas); confirme com a Receita ou um contador.</p></div>`;
+  const evs = [...S.dca.map(x => ({...x, t:'b'})), ...S.sales.map(x => ({...x, t:'s'}))].sort((a, b) => b.date.localeCompare(a.date));
+  $('dca-list').innerHTML = evs.map(x => {
+    if (x.t === 's') { const i = s.salesInfo[x.id] || {g:0, short:false};
+      return `<div class="flex justify-between items-center py-2 gap-2 text-xs"><span class="text-slate-400">${fd(x.date)}</span><span><span class="text-rose-400">Venda</span> ${brl.format(x.brl)} a ${brl.format(x.price)}${i.short ? ' <span class="text-amber-400">(saldo insuficiente)</span>' : ''}</span><span class="${i.g >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${i.g >= 0 ? '+' : ''}${brl.format(i.g)}</span><button class="text-slate-500 hover:text-rose-400" aria-label="Remover venda" onclick="delSale(${x.id})">✕</button></div>`; }
     const v = M.btc ? x.brl / x.price * M.btc : 0, p = M.btc ? (v / x.brl - 1) * 100 : 0;
     return `<div class="flex justify-between items-center py-2 gap-2 text-xs"><span class="text-slate-400">${fd(x.date)}</span><span>${brl.format(x.brl)} a ${brl.format(x.price)}</span><span class="${p >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${M.btc ? brl.format(v) + ' (' + (p >= 0 ? '+' : '') + num(p, 1) + '%)' : ''}</span><button class="text-slate-500 hover:text-rose-400" aria-label="Remover compra" onclick="delDca(${x.id})">✕</button></div>`;
   }).join('') || '<p class="py-2 text-slate-400">Nenhuma compra registrada. Adicione a primeira acima.</p>';
@@ -507,19 +566,19 @@ const gainChart = new Chart($('gainChart'), {type:'bar', data:{labels:[], datase
   options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c => (c.parsed.x >= 0 ? 'Ganho: ' : 'Perda: ') + brl.format(c.parsed.x)}}},
     scales:{x:{grid:{color:'#1e293b'}, ticks:{maxTicksLimit:4, callback:v => brl.format(v)}}, y:{grid:{display:false}}}}});
 function renderPie() {
-  const s = dcaStats(), calcs = S.boxes.map(boxCalc), labels = S.boxes.map(b => b.name), data = calcs.map(t => t.inv + t.g);
+  const s = dcaStats(), calcs = S.boxes.map(boxCalc), labels = S.boxes.map(b => b.name), data = calcs.map(t => t.bal);
   const cols = S.boxes.map((_, i) => COLORS[i % COLORS.length]);
   if (s.val > 0) { labels.push('Bitcoin'); data.push(s.val); cols.push('#f59e0b'); }
   pie.data.labels = labels; pie.data.datasets[0].data = data; pie.data.datasets[0].backgroundColor = cols; pie.update();
-  /* Patrimônio total, quanto foi aportado e ganho/perda */
-  const total = data.reduce((a, b) => a + b, 0), inv = calcs.reduce((a, t) => a + t.inv, 0) + (M.btc ? s.inv : 0), gain = total - inv;
-  const col = !inv ? '' : gain >= 0 ? 'text-emerald-400' : 'text-rose-400';
+  /* Patrimônio total e ganho/perda de toda a vida (inclui o que já foi retirado) */
+  const total = data.reduce((a, b) => a + b, 0), dep = calcs.reduce((a, t) => a + t.dep, 0) + (M.btc ? s.bought : 0), gain = calcs.reduce((a, t) => a + t.g, 0) + (M.btc ? s.life : 0);
+  const col = !dep ? '' : gain >= 0 ? 'text-emerald-400' : 'text-rose-400';
   $('m-total').textContent = brl.format(total); $('m-total').className = 'text-base ' + col;
-  $('m-gain').textContent = inv ? (gain >= 0 ? '+' : '') + brl.format(gain) + ' (' + (gain >= 0 ? '+' : '') + num(gain / inv * 100, 2) + '%)' : '';
+  $('m-gain').textContent = dep ? (gain >= 0 ? '+' : '') + brl.format(gain) + ' (' + (gain >= 0 ? '+' : '') + num(gain / dep * 100, 2) + '%)' : '';
   $('m-gain').className = 'block text-xs ' + col;
   /* Ganhos e perdas por ativo */
   const items = S.boxes.map((b, k) => ({n:b.name, v:calcs[k].g}));
-  if (M.btc && s.inv) items.push({n:'Bitcoin', v:s.pl});
+  if (M.btc && s.bought) items.push({n:'Bitcoin', v:s.life});
   const bar = (el, list, up) => {
     if (!list.length) { el.className = 'hidden'; el.innerHTML = ''; return; }
     const c = up ? 'emerald' : 'rose';
@@ -534,7 +593,7 @@ function renderPie() {
   gainChart.update();
 }
 const histChart = new Chart($('histChart'), {type:'line', data:{labels:[], datasets:[
-  {label:'Total aportado', data:[], borderColor:'#6366f1', backgroundColor:'rgba(99,102,241,.1)', fill:true, stepped:true, pointRadius:0, borderWidth:2},
+  {label:'Capital investido (aportes − retiradas)', data:[], borderColor:'#6366f1', backgroundColor:'rgba(99,102,241,.1)', fill:true, stepped:true, pointRadius:0, borderWidth:2},
   {label:'Valor atual', data:[], borderColor:'#10b981', backgroundColor:'#10b981', pointRadius:6, showLine:false}]},
   options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{boxWidth:10}}, tooltip:{callbacks:{label:c => c.dataset.label + ': ' + brl.format(c.parsed.y)}}},
     scales:{x:{grid:{color:'#1e293b'}, ticks:{maxTicksLimit:6}}, y:{grid:{color:'#1e293b'}, ticks:{callback:v => brl.format(v)}}}}});
@@ -706,22 +765,26 @@ function compare() {
     rows.map((r, i) => `<tr class="border-t border-slate-800"><td class="py-2 pr-3 font-medium whitespace-nowrap">${r.o.n}${i === 0 ? ' <span class="text-xs text-emerald-400">melhor</span>' : ''}</td><td class="pr-3 whitespace-nowrap">${num(r.eff * 100)}%</td><td class="pr-3 whitespace-nowrap">${brl.format(r.net)}</td><td class="pr-3 whitespace-nowrap text-emerald-400">+${brl.format(r.gain)} (${r.inv ? num(r.gain / r.inv * 100, 1) : '0,0'}%)</td><td class="pr-3 whitespace-nowrap text-rose-400">- ${brl.format(r.tax)}</td>${meta ? `<td class="whitespace-nowrap">${brl.format(r.req)}</td>` : ''}</tr>`).join('') + '</tbody></table>';
 }
 function renderHist() {
-  const ev = [];
-  S.boxes.forEach(b => { const t = boxCalc(b); b.deps.forEach(d => ev.push({date:d.date, tipo:b.name, amount:d.amount, gain:t.items[d.id].g})); });
-  S.dca.forEach(x => ev.push({date:x.date, tipo:'Bitcoin', amount:x.brl, gain:M.btc ? x.brl / x.price * M.btc - x.brl : 0}));
-  ev.sort((a, b) => a.date.localeCompare(b.date));
-  const inv = ev.reduce((a, e) => a + e.amount, 0), gain = ev.reduce((a, e) => a + e.gain, 0);
+  const ev = [], st = dcaStats(), qtot = S.dca.reduce((a, x) => a + x.brl / x.price, 0);
+  S.boxes.forEach(b => {
+    const t = boxCalc(b);
+    b.deps.forEach(d => ev.push({date:d.date, tipo:b.name, amount:d.amount, gain:t.items[d.id].g, k:'d'}));
+    (b.wds || []).forEach(w => { const r = t.wds[w.id]; if (r) ev.push({date:w.date, tipo:b.name + ' (retirada)', amount:r.taken, gain:r.gain, k:'w', net:r.net}); });
+  });
+  S.dca.forEach(x => { const q = x.brl / x.price; ev.push({date:x.date, tipo:'Bitcoin', amount:x.brl, gain:!M.btc ? 0 : S.sales.length ? (qtot ? st.pl * q / qtot : 0) : q * M.btc - x.brl, k:'d'}); });
+  S.sales.forEach(x => { const i = st.salesInfo[x.id]; if (i) ev.push({date:x.date, tipo:'Bitcoin (venda)', amount:i.pr, gain:i.g, k:'w'}); });
+  ev.sort((a, b) => a.date.localeCompare(b.date) || (a.k === 'd' ? -1 : 1));
+  const dep = ev.filter(e => e.k === 'd').reduce((a, e) => a + e.amount, 0), wd = ev.filter(e => e.k === 'w').reduce((a, e) => a + e.amount, 0), gain = ev.reduce((a, e) => a + e.gain, 0);
   let acc = 0;
-  const line = ev.map(e => (acc += e.amount));
+  const line = ev.map(e => (acc += e.k === 'd' ? e.amount : -e.amount));
   histChart.data.labels = ev.map(e => fd(e.date)).concat('Hoje');
   histChart.data.datasets[0].data = line.concat(acc);
-  histChart.data.datasets[1].data = ev.map(() => null).concat(inv + gain);
+  histChart.data.datasets[1].data = ev.map(() => null).concat(dep - wd + gain);
   histChart.update();
-  $('hist-sum').innerHTML = cell('Total aportado', brl.format(inv)) + cell('Rendimento', (gain >= 0 ? '+' : '') + brl.format(gain), gain >= 0 ? 'text-emerald-400' : 'text-rose-400') +
-    cell('Rentabilidade', inv ? num(gain / inv * 100, 2) + '%' : '—') + cell('Valor atual', brl.format(inv + gain));
-  $('hist-list').innerHTML = ev.slice().reverse().map(e => `<div class="flex justify-between gap-2 py-2 text-xs"><span class="text-slate-400">${fd(e.date)}</span><span class="flex-1 truncate">${esc(e.tipo)}</span><span>${brl.format(e.amount)}</span><span class="${e.gain >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${e.gain >= 0 ? '+' : ''}${brl.format(e.gain)}</span></div>`).join('') || '<p class="py-2 text-slate-400">Nenhum aporte registrado ainda.</p>';
+  $('hist-sum').innerHTML = cell('Total aportado', brl.format(dep)) + cell('Total retirado', brl.format(wd)) + cell('Rendimento', (gain >= 0 ? '+' : '') + brl.format(gain), gain >= 0 ? 'text-emerald-400' : 'text-rose-400') +
+    cell('Rentabilidade', dep ? num(gain / dep * 100, 2) + '%' : '—') + cell('Valor atual', brl.format(dep - wd + gain));
+  $('hist-list').innerHTML = ev.slice().reverse().map(e => `<div class="flex justify-between gap-2 py-2 text-xs"><span class="text-slate-400">${fd(e.date)}</span><span class="flex-1 truncate">${esc(e.tipo)}</span><span class="${e.k === 'w' ? 'text-rose-400' : ''}">${e.k === 'w' ? '- ' : ''}${brl.format(e.amount)}</span><span class="${e.gain >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${e.gain >= 0 ? '+' : ''}${brl.format(e.gain)}</span></div>`).join('') || '<p class="py-2 text-slate-400">Nenhum aporte registrado ainda.</p>';
 }
-
 function exportData() {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(S, null, 2)], {type:'application/json'}));
@@ -793,7 +856,7 @@ $('b-broker').value = UI.bk || 'none'; $('b-url').value = UI.bu || ''; $('b-exch
   $('a-token').value = UI.brapi || ''; $('a-dy').disabled = $('a-asset').value === 'BTC'; }
 $('c-init').value = UI.cmp.init; $('c-mon').value = UI.cmp.mon; $('c-mth').value = UI.cmp.mth; $('c-meta').value = UI.cmp.meta; renderRates(); compare();
 $('ver').textContent = VERSION; applyPin(); initCollapse();
-$('d-date').value = today();
+$('d-date').value = today(); $('sl-date').value = today();
 renderMarket(); renderAll(); simulate();
 renderQuotes(); if (UI.tv) loadTV();
 if (!UI.qAt || Date.now() - UI.qAt > 10 * 60e3) loadQuotes();
