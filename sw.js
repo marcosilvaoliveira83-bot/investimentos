@@ -1,9 +1,14 @@
-const C = 'inv-v1';
-const APIS = ['coingecko', 'awesomeapi', 'bcb.gov.br'];
+const C = 'inv-v2';
+const APIS = ['coingecko', 'awesomeapi', 'bcb.gov.br', 'brapi.dev', 'tradingview'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(C).then(c => c.addAll(['./', './painel-investimentos.html'])));
+  // funciona com o arquivo chamado index.html ou painel-investimentos.html
+  e.waitUntil(caches.open(C).then(c => Promise.all(['./', './index.html', './painel-investimentos.html'].map(u => c.add(u).catch(() => {})))));
   self.skipWaiting();
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C).map(k => caches.delete(k)))));
 });
 
 self.addEventListener('fetch', e => {
