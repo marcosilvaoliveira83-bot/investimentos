@@ -83,7 +83,7 @@
     <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">Selic meta</span><b id="m-selic" class="text-base text-emerald-400">—</b></div>
     <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">IPCA (12 meses)</span><b id="m-ipca" class="text-base text-rose-400">—</b><span id="m-ipca-ref" class="block text-xs text-slate-500"></span></div>
     <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">IGP-M aluguel (12m)</span><b id="m-igpm" class="text-base text-amber-400">—</b><span id="m-igpm-ref" class="block text-xs text-slate-500"></span></div>
-    <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">Dólar</span><b id="m-usd" class="text-base text-sky-400">—</b></div>
+    <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">Dólar comercial</span><b id="m-usd" class="text-base text-sky-400">—</b><span id="m-usd2" class="block text-xs text-slate-500"></span></div>
     <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">Bitcoin (R$)</span><b id="m-btc" class="text-base text-amber-400">—</b><span id="m-chg" class="block text-xs"></span></div>
     <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">Patrimônio total</span><b id="m-total" class="text-base">—</b><span id="m-gain" class="block text-xs"></span></div>
   </div>
@@ -201,6 +201,47 @@
     <p class="text-xs text-slate-500 mt-2">CDI, Selic e IPCA vêm dos indicadores do painel. As taxas de Tesouro IPCA+, CDB e LCI/LCA são exemplos editáveis e mudam toda semana: confira a taxa do dia antes de decidir. Tesouro e CDB pagam IR regressivo, por aporte (de 22,5% a 15%); LCI/LCA e poupança são consideradas isentas de IR para pessoa física (confirme se a regra mudou). No Tesouro, a B3 cobra custódia de cerca de 0,20% ao ano, que o cálculo desconta (há isenções em alguns casos). LCI/LCA costumam ter carência e menos liquidez. A poupança usa a regra atual de 0,5% ao mês mais TR (a TR é ignorada). IPCA futuro = IPCA dos últimos 12 meses mantido. Estimativa, não recomendação de investimento.</p>
   </div>
   <div class="card lg:col-span-3">
+    <h2>Dólar e Bitcoin: referência × meu app</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div>
+        <p class="lbl">Dólar comercial (referência do mercado)</p>
+        <div id="fx-usd" class="grid grid-cols-2 gap-2 text-sm"></div>
+        <div class="grid grid-cols-2 gap-2 mt-3">
+          <div><label class="lbl" for="fx-usdbuy">Dólar no meu app: eu compro a (R$)</label><input id="fx-usdbuy" type="number" min="0" step="0.0001" class="inp" onchange="saveFx()"></div>
+          <div><label class="lbl" for="fx-usdsell">Dólar no meu app: eu vendo a (R$)</label><input id="fx-usdsell" type="number" min="0" step="0.0001" class="inp" onchange="saveFx()"></div>
+        </div>
+      </div>
+      <div>
+        <p class="lbl">Bitcoin (referência do painel)</p>
+        <div id="fx-btc" class="grid grid-cols-2 gap-2 text-sm"></div>
+        <div class="grid grid-cols-2 gap-2 mt-3">
+          <div><label class="lbl" for="fx-btcbuy">Bitcoin no meu app: eu compro a (R$)</label><input id="fx-btcbuy" type="number" min="0" step="0.01" class="inp" onchange="saveFx()"></div>
+          <div><label class="lbl" for="fx-btcsell">Bitcoin no meu app: eu vendo a (R$)</label><input id="fx-btcsell" type="number" min="0" step="0.01" class="inp" onchange="saveFx()"></div>
+        </div>
+      </div>
+    </div>
+    <div id="fx-out" class="mt-3 grid md:grid-cols-2 gap-2 text-sm"></div>
+    <div class="flex flex-col gap-1 mt-3 text-xs text-slate-400">
+      <label><input type="checkbox" id="fx-use" onchange="saveFx()"> Usar o preço do app ao registrar compras e vendas de Bitcoin (quando o campo preço ficar vazio)</label>
+      <label><input type="checkbox" id="fx-val" onchange="saveFx()"> Valorizar meu Bitcoin pelo preço de venda do app, em vez da referência</label>
+    </div>
+    <p class="text-xs text-slate-500 mt-2">Na referência, a venda (ask) é o preço que o mercado cobra de quem compra, e a compra (bid) é o que ele paga a quem vende. Digite os preços que o seu app mostra na hora. O painel compara só o preço: IOF e tarifas ficam de fora. O dólar vem da AwesomeAPI e fica parado quando o câmbio está fechado (noites e fins de semana). O dólar turismo só aparece se a API informar.</p>
+  </div>
+  <div class="card lg:col-span-3">
+    <h2>Outras moedas e conversor</h2>
+    <div id="fx-table" class="overflow-x-auto text-sm"></div>
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-2 items-end mt-4">
+      <div><label class="lbl" for="cv-brl">Tenho (R$)</label><input id="cv-brl" type="number" min="0" step="0.01" class="inp" onchange="UI.cv.mode = 'brl'; convert()"></div>
+      <div><label class="lbl" for="cv-cur">Moeda</label><select id="cv-cur" class="inp" onchange="convert()"></select></div>
+      <div><label class="lbl" for="cv-amt">Quero comprar (na moeda)</label><input id="cv-amt" type="number" min="0" step="0.01" class="inp" onchange="UI.cv.mode = 'amt'; convert()"></div>
+      <div><label class="lbl" for="cv-spread">Spread do meu app (%)</label><input id="cv-spread" type="number" min="0" step="0.1" class="inp" onchange="convert()"></div>
+      <div><label class="lbl" for="cv-iof">IOF (%)</label><input id="cv-iof" type="number" min="0" step="0.1" class="inp" onchange="convert()"></div>
+      <button class="chip !py-2.5" onclick="clearConv()">Limpar</button>
+    </div>
+    <div id="cv-out" class="mt-3 text-sm"></div>
+    <p class="text-xs text-slate-500 mt-2">O conversor usa a venda (ask) do mercado, que é o preço de quem compra moeda, e soma o spread e o IOF que você informar. Confira no seu app o spread e o IOF da operação, porque mudam conforme o produto. Cotações da AwesomeAPI; as moedas ficam paradas quando o câmbio está fechado.</p>
+  </div>
+  <div class="card lg:col-span-3">
     <h2>Cotações da bolsa e compra</h2>
     <div class="flex flex-wrap gap-2 items-end mb-3">
       <div><label class="lbl" for="b-broker">Minha corretora (ações)</label><select id="b-broker" class="inp" onchange="setBroker()"></select></div>
@@ -254,9 +295,11 @@ S.boxes.forEach(b => { b.deps = b.deps || []; b.wds = b.wds || []; if (b.limit =
 const openBoxes = new Set(S.boxes.map(b => b.id));
 let CDIH = read('inv-cdi', {});
 let UI = read('inv-ui', {});
-UI.sim = UI.sim || {mon:500, months:12}; UI.collapsed = UI.collapsed || {};
+UI.sim = UI.sim || {mon:500, months:12}; UI.collapsed = UI.collapsed || {}; UI.fx = UI.fx || {}; UI.cv = UI.cv || {cur:'EUR', mode:'brl'};
 const saveUI = () => write('inv-ui', UI);
-const VERSION = '2.2.2 · nov/2026';
+const VERSION = '2.4.0 · nov/2026';
+const btcPx = () => (UI.fx.valueApp && +UI.fx.btcSell > 0) ? +UI.fx.btcSell : M.btc;
+const fxPx = k => (UI.fx.useApp && +UI.fx[k] > 0) ? +UI.fx[k] : M.btc;
 const LOSS = '<span class="inline-flex items-center gap-1 text-xs text-rose-400 font-normal ml-2 whitespace-nowrap"><span class="inline-block w-2 h-2 rounded-full bg-rose-400 animate-pulse"></span>prejuízo</span>';
 function applyPin() { const p = UI.pin !== false; $('topbar').classList.toggle('pin', p); $('pin-btn').textContent = p ? 'Fixo' : 'Solto'; $('pin-btn').setAttribute('aria-pressed', String(p)); }
 function togglePin() { UI.pin = (UI.pin === false); saveUI(); applyPin(); }
@@ -293,13 +336,16 @@ async function loadMarket() {
     getJson('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json').then(d => M.selic = parseFloat(d[0].valor)),
     getJson('https://api.bcb.gov.br/dados/serie/bcdata.sgs.13522/dados/ultimos/1?formato=json').then(d => { M.ipca = parseFloat(d[0].valor); M.ipcaRef = d[0].data.slice(3); }),
     getJson('https://api.bcb.gov.br/dados/serie/bcdata.sgs.189/dados/ultimos/12?formato=json').then(d => { if (d.length < 12) throw new Error('igpm'); M.igpm = (d.reduce((a, x) => a * (1 + parseFloat(x.valor) / 100), 1) - 1) * 100; M.igpmRef = d[d.length - 1].data.slice(3); }),
-    getJson('https://economia.awesomeapi.com.br/json/last/USD-BRL').then(d => M.usd = parseFloat(d.USDBRL.bid)),
+    getJson('https://economia.awesomeapi.com.br/json/last/USD-BRL').then(d => { const u = d.USDBRL; M.usd = parseFloat(u.bid); M.usdAsk = parseFloat(u.ask); M.usdHi = parseFloat(u.high); M.usdLo = parseFloat(u.low); M.usdPct = parseFloat(u.pctChange); M.usdAt = (+u.timestamp || 0) * 1000; }),
+    getJson('https://economia.awesomeapi.com.br/json/last/USD-BRLT').then(d => { const u = d.USDBRLT; M.usdTur = {bid:parseFloat(u.bid), ask:parseFloat(u.ask)}; }).catch(() => {}),
+    getJson('https://economia.awesomeapi.com.br/json/last/EUR-BRL,GBP-BRL,ARS-BRL,CAD-BRL,CHF-BRL,JPY-BRL').then(d => { M.fxs = {}; Object.values(d).forEach(u => { M.fxs[u.code] = {bid:parseFloat(u.bid), ask:parseFloat(u.ask), pct:parseFloat(u.pctChange), at:(+u.timestamp || 0) * 1000}; }); }).catch(() => {}),
+    getJson('https://economia.awesomeapi.com.br/json/last/BTC-BRL').then(d => { const u = d.BTCBRL; M.btcBid = parseFloat(u.bid); M.btcAsk = parseFloat(u.ask); }).catch(() => {}),
     getJson('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=brl&include_24hr_change=true').then(d => { M.btc = d.bitcoin.brl; M.chg = d.bitcoin.brl_24h_change; })
   ];
   const res = await Promise.allSettled(jobs);
   if (res.some(r => r.status === 'fulfilled')) { lastUpdate = Date.now(); write('inv-mkt', M); }
   if (res.some(r => r.status === 'rejected')) $('status').textContent = 'Algumas cotações falharam; usando o último valor salvo.';
-  renderMarket(); syncBtcPrice(); renderQuotes(); compare();
+  renderMarket(); syncBtcPrice(); renderQuotes(); compare(); renderFx(); renderCur();
   if ($('boxes').contains(document.activeElement)) { renderDca(); renderPie(); renderHist(); } else renderAll();
 }
 function renderMarket() {
@@ -309,6 +355,7 @@ function renderMarket() {
   $('m-ipca-ref').textContent = M.ipcaRef ? 'acumulado até ' + M.ipcaRef : '';
   $('m-igpm').textContent = M.igpm != null ? num(M.igpm) + '%' : '—';
   $('m-igpm-ref').textContent = M.igpmRef ? 'acumulado até ' + M.igpmRef : '';
+  $('m-usd2').textContent = M.usdAsk ? 'venda ' + brl.format(M.usdAsk) : '';
   $('m-usd').textContent = brl.format(M.usd);
   $('m-btc').textContent = M.btc ? brl.format(M.btc) : '—';
   const c = $('m-chg');
@@ -507,13 +554,13 @@ function simulate() {
 
 /* DCA de Bitcoin: compras e vendas (custo médio) */
 function addDca() {
-  const v = +$('d-brl').value, price = +$('d-price').value || M.btc, date = $('d-date').value;
+  const v = +$('d-brl').value, price = +$('d-price').value || fxPx('btcBuy'), date = $('d-date').value;
   if (!(v > 0) || !price || !date) { $('d-brl').focus(); return; }
   S.dca.push({id:Date.now(), date, brl:v, price}); save();
   $('d-brl').value = ''; $('d-price').value = ''; renderAll();
 }
 function addSale() {
-  const v = +$('sl-brl').value, price = +$('sl-price').value || M.btc, date = $('sl-date').value;
+  const v = +$('sl-brl').value, price = +$('sl-price').value || fxPx('btcSell'), date = $('sl-date').value;
   if (!(v > 0) || !price || !date) { $('sl-brl').focus(); return; }
   S.sales.push({id:Date.now(), date, brl:v, price}); save();
   $('sl-brl').value = ''; $('sl-price').value = ''; renderAll();
@@ -531,7 +578,7 @@ function dcaStats() {
     byMonth[m] = byMonth[m] || {pr:0, g:0}; byMonth[m].pr += pr; byMonth[m].g += g;
     salesInfo[e.id] = {pr, g, short:sq < want - 1e-12};
   });
-  const val = M.btc ? q * M.btc : 0;
+  const val = M.btc ? q * btcPx() : 0;
   let saleTax = 0;
   Object.values(byMonth).forEach(m => { if (m.g > 0 && (S.btcWhere === 'ext' || m.pr > 35000)) saleTax += m.g * .15; });
   return {inv:cost, bought, btc:q, avg:q ? cost / q : 0, val, pl:val - cost, plp:cost ? (val - cost) / cost * 100 : 0, real, proceeds, saleTax, salesInfo, life:val + proceeds - bought};
@@ -547,14 +594,14 @@ function renderDca() {
   $('dca-sum').innerHTML = cell('Investido (custo)', brl.format(s.inv)) + cell('Total atual', M.btc ? brl.format(s.val) : '—', 'text-emerald-400') + cell('Quantidade', num(s.btc, 8) + ' BTC') +
     cell('Preço médio', s.avg ? brl.format(s.avg) : '—') + cell('Em sats', Math.round(s.btc * 1e8).toLocaleString('pt-BR')) +
     cell('Resultado bruto', M.btc && s.inv ? (s.pl >= 0 ? '+' : '') + brl.format(s.pl) + ' (' + num(s.plp, 1) + '%)' : '—', cls) +
-    cell('IR se vender tudo hoje', M.btc ? brl.format(t.tax) : '—', 'text-rose-400') + cell('Líquido após IR', M.btc ? brl.format(s.val - t.tax) : '—') +
+    cell('IR se vender tudo hoje', M.btc ? brl.format(t.tax) : '—', 'text-rose-400') + cell('Líquido após IR', M.btc ? brl.format(s.val - t.tax) : '—') + (+UI.fx.btcSell > 0 && !UI.fx.valueApp ? cell('Valor pelo preço de venda do app', brl.format(s.btc * +UI.fx.btcSell)) : '') +
     (sold ? cell('Total vendido', brl.format(s.proceeds)) + cell('Lucro realizado', (s.real >= 0 ? '+' : '') + brl.format(s.real), s.real >= 0 ? 'text-emerald-400' : 'text-rose-400') + cell('IR estimado nas vendas', '- ' + brl.format(s.saleTax), 'text-rose-400') : '') +
     `<div class="col-span-2 md:col-span-4 text-xs text-slate-400"><label for="d-where">Onde você compra: </label><select id="d-where" class="inp !w-auto !py-1" onchange="S.btcWhere=this.value;save();renderAll()"><option value="br" ${S.btcWhere === 'br' ? 'selected' : ''}>Corretora no Brasil</option><option value="ext" ${S.btcWhere === 'ext' ? 'selected' : ''}>Corretora no exterior</option></select><p class="mt-1">${t.note} Estimativa simples (custo médio, sem taxas); confirme com a Receita ou um contador.</p></div>`;
   const evs = [...S.dca.map(x => ({...x, t:'b'})), ...S.sales.map(x => ({...x, t:'s'}))].sort((a, b) => b.date.localeCompare(a.date));
   $('dca-list').innerHTML = evs.map(x => {
     if (x.t === 's') { const i = s.salesInfo[x.id] || {g:0, short:false};
       return `<div class="flex justify-between items-center py-2 gap-2 text-xs"><span class="text-slate-400">${fd(x.date)}</span><span><span class="text-rose-400">Venda</span> ${brl.format(x.brl)} a ${brl.format(x.price)}${i.short ? ' <span class="text-amber-400">(saldo insuficiente)</span>' : ''}</span><span class="${i.g >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${i.g >= 0 ? '+' : ''}${brl.format(i.g)}</span><button class="text-slate-500 hover:text-rose-400" aria-label="Remover venda" onclick="delSale(${x.id})">✕</button></div>`; }
-    const v = M.btc ? x.brl / x.price * M.btc : 0, p = M.btc ? (v / x.brl - 1) * 100 : 0;
+    const v = M.btc ? x.brl / x.price * btcPx() : 0, p = M.btc ? (v / x.brl - 1) * 100 : 0;
     return `<div class="flex justify-between items-center py-2 gap-2 text-xs"><span class="text-slate-400">${fd(x.date)}</span><span>${brl.format(x.brl)} a ${brl.format(x.price)}</span><span class="${p >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${M.btc ? brl.format(v) + ' (' + (p >= 0 ? '+' : '') + num(p, 1) + '%)' : ''}</span><button class="text-slate-500 hover:text-rose-400" aria-label="Remover compra" onclick="delDca(${x.id})">✕</button></div>`;
   }).join('') || '<p class="py-2 text-slate-400">Nenhuma compra registrada. Adicione a primeira acima.</p>';
 }
@@ -764,6 +811,58 @@ function compare() {
     <table class="w-full text-left text-sm"><thead><tr class="text-xs text-slate-400"><th class="pb-1">Investimento</th><th>Taxa bruta a.a.</th><th>Total líquido</th><th>Ganho líquido</th><th>IR</th>${meta ? '<th>Aporte mensal p/ a meta</th>' : ''}</tr></thead><tbody>` +
     rows.map((r, i) => `<tr class="border-t border-slate-800"><td class="py-2 pr-3 font-medium whitespace-nowrap">${r.o.n}${i === 0 ? ' <span class="text-xs text-emerald-400">melhor</span>' : ''}</td><td class="pr-3 whitespace-nowrap">${num(r.eff * 100)}%</td><td class="pr-3 whitespace-nowrap">${brl.format(r.net)}</td><td class="pr-3 whitespace-nowrap text-emerald-400">+${brl.format(r.gain)} (${r.inv ? num(r.gain / r.inv * 100, 1) : '0,0'}%)</td><td class="pr-3 whitespace-nowrap text-rose-400">- ${brl.format(r.tax)}</td>${meta ? `<td class="whitespace-nowrap">${brl.format(r.req)}</td>` : ''}</tr>`).join('') + '</tbody></table>';
 }
+/* Dólar e Bitcoin: referência x preço do app */
+const r4 = v => 'R$ ' + num(v, 4);
+const pctS = v => (v >= 0 ? '+' : '') + num(v, 2) + '%';
+function ago(ms) { if (!ms) return ''; const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'agora' : m < 90 ? 'há ' + m + ' min' : m < 2880 ? 'há ' + Math.round(m / 60) + ' h' : 'há ' + Math.round(m / 1440) + ' dias'; }
+function saveFx() {
+  UI.fx = {usdBuy:$('fx-usdbuy').value, usdSell:$('fx-usdsell').value, btcBuy:$('fx-btcbuy').value, btcSell:$('fx-btcsell').value, useApp:$('fx-use').checked, valueApp:$('fx-val').checked};
+  saveUI(); renderFx(); renderAll();
+}
+function renderFx() {
+  const f = UI.fx, col = v => v >= 0 ? 'text-emerald-400' : 'text-rose-400';
+  $('fx-usd').innerHTML = M.usdAsk
+    ? cell('Compra (bid)', r4(M.usd)) + cell('Venda (ask)', r4(M.usdAsk)) + cell('Máxima / mínima do dia', r4(M.usdHi) + ' / ' + r4(M.usdLo)) + cell('Variação do dia', pctS(M.usdPct), col(M.usdPct)) +
+      cell('Diferença compra × venda', num((M.usdAsk - M.usd) / M.usd * 100, 3) + '%') + cell('Última cotação', M.usdAt ? ago(M.usdAt) : '—') +
+      (M.usdTur ? cell('Dólar turismo (venda)', r4(M.usdTur.ask)) : '') +
+      (M.usdAt && Date.now() - M.usdAt > 3 * 3600e3 ? '<p class="col-span-2 text-xs text-amber-400">Câmbio parado: mercado fechado ou fim de semana.</p>' : '')
+    : '<p class="col-span-2 text-xs text-slate-400">Aguardando a cotação do dólar...</p>';
+  $('fx-btc').innerHTML = M.btc
+    ? cell('Referência (CoinGecko)', brl.format(M.btc)) + cell('Variação em 24h', M.chg != null ? pctS(M.chg) : '—', M.chg != null ? col(M.chg) : '') +
+      (M.btcAsk ? cell('AwesomeAPI: compra', brl.format(M.btcBid)) + cell('AwesomeAPI: venda', brl.format(M.btcAsk)) : '')
+    : '<p class="col-span-2 text-xs text-slate-400">Aguardando a cotação do Bitcoin...</p>';
+  const cmpFx = (nome, buy, sell, refAsk, refBid) => {
+    if (!(buy > 0) && !(sell > 0)) return '';
+    const parts = [];
+    if (buy > 0 && refAsk) parts.push(`comprar no app custa <b class="text-rose-400">${pctS((buy / refAsk - 1) * 100)}</b> em relação ao mercado`);
+    if (sell > 0 && refBid) parts.push(`vender no app paga <b class="text-rose-400">${pctS((sell / refBid - 1) * 100)}</b> em relação ao mercado`);
+    if (buy > 0 && sell > 0) parts.push(`comprar e vender de volta no app perde cerca de <b>${num((1 - sell / buy) * 100, 2)}%</b>`);
+    return `<div class="bg-slate-900 border border-slate-800 rounded-lg p-2"><span class="lbl !mb-0">${nome}</span><p>${parts.join('; ')}.</p></div>`;
+  };
+  $('fx-out').innerHTML = cmpFx('Dólar', +f.usdBuy, +f.usdSell, M.usdAsk, M.usd) + cmpFx('Bitcoin', +f.btcBuy, +f.btcSell, M.btc, M.btc) || '<p class="text-xs text-slate-400 md:col-span-2">Digite os preços do seu app para ver a diferença em relação ao mercado.</p>';
+}
+/* Outras moedas e conversor */
+const CUR = {USD:'Dólar americano', EUR:'Euro', GBP:'Libra esterlina', ARS:'Peso argentino', CAD:'Dólar canadense', CHF:'Franco suíço', JPY:'Iene japonês'};
+const curQ = c => c === 'USD' ? (M.usdAsk ? {bid:M.usd, ask:M.usdAsk, pct:M.usdPct, at:M.usdAt} : null) : (M.fxs && M.fxs[c]) || null;
+const rN = v => 'R$ ' + num(v, v < 0.1 ? 5 : 4);
+function renderCur() {
+  $('fx-table').innerHTML = '<table class="w-full text-left"><thead><tr class="text-xs text-slate-400"><th class="pb-1">Moeda</th><th>Compra (bid)</th><th>Venda (ask)</th><th>Dia</th><th>Última cotação</th></tr></thead><tbody>' +
+    Object.keys(CUR).map(c => { const q = curQ(c);
+      return `<tr class="border-t border-slate-800"><td class="py-2 pr-3 font-medium whitespace-nowrap">${CUR[c]} <span class="text-xs text-slate-500">${c}</span></td><td class="pr-3 whitespace-nowrap">${q ? rN(q.bid) : '—'}</td><td class="pr-3 whitespace-nowrap">${q ? rN(q.ask) : '—'}</td><td class="pr-3 whitespace-nowrap ${q && q.pct >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${q && !isNaN(q.pct) ? pctS(q.pct) : ''}</td><td class="whitespace-nowrap text-slate-400">${q && q.at ? ago(q.at) : ''}</td></tr>`; }).join('') + '</tbody></table>';
+  convert();
+}
+function convert() {
+  const cur = $('cv-cur').value || 'EUR', q = curQ(cur), out = $('cv-out');
+  UI.cv = {...UI.cv, brl:$('cv-brl').value, amt:$('cv-amt').value, cur, spread:$('cv-spread').value, iof:$('cv-iof').value}; saveUI();
+  if (!q) { out.innerHTML = '<p class="text-slate-400">Aguardando a cotação...</p>'; return; }
+  const sp = (+UI.cv.spread || 0) / 100, io = (+UI.cv.iof || 0) / 100, rate = q.ask * (1 + sp) * (1 + io), brl0 = +UI.cv.brl, amt = +UI.cv.amt;
+  if (UI.cv.mode === 'amt' && amt > 0) {
+    out.innerHTML = `<p>Para comprar <b>${num(amt)} ${cur}</b> você paga cerca de <b class="text-emerald-400">${brl.format(amt * rate)}</b>. Cotação efetiva: ${rN(rate)} por unidade, ${num((rate / q.ask - 1) * 100, 2)}% acima da venda do mercado (${rN(q.ask)}).</p>`;
+  } else if (brl0 > 0) {
+    out.innerHTML = `<p>Com <b>${brl.format(brl0)}</b> você compra cerca de <b class="text-emerald-400">${num(brl0 / rate)} ${cur}</b>. Cotação efetiva: ${rN(rate)} por unidade, ${num((rate / q.ask - 1) * 100, 2)}% acima da venda do mercado (${rN(q.ask)}). Sem spread e IOF seriam ${num(brl0 / q.ask)} ${cur}.</p>`;
+  } else out.innerHTML = '<p class="text-slate-400">Digite quanto você tem em reais ou quanto quer comprar na moeda.</p>';
+}
+function clearConv() { ['brl', 'amt', 'spread', 'iof'].forEach(k => $('cv-' + k).value = ''); UI.cv = {cur:$('cv-cur').value, mode:'brl'}; saveUI(); convert(); }
 function renderHist() {
   const ev = [], st = dcaStats(), qtot = S.dca.reduce((a, x) => a + x.brl / x.price, 0);
   S.boxes.forEach(b => {
@@ -771,7 +870,7 @@ function renderHist() {
     b.deps.forEach(d => ev.push({date:d.date, tipo:b.name, amount:d.amount, gain:t.items[d.id].g, k:'d'}));
     (b.wds || []).forEach(w => { const r = t.wds[w.id]; if (r) ev.push({date:w.date, tipo:b.name + ' (retirada)', amount:r.taken, gain:r.gain, k:'w', net:r.net}); });
   });
-  S.dca.forEach(x => { const q = x.brl / x.price; ev.push({date:x.date, tipo:'Bitcoin', amount:x.brl, gain:!M.btc ? 0 : S.sales.length ? (qtot ? st.pl * q / qtot : 0) : q * M.btc - x.brl, k:'d'}); });
+  S.dca.forEach(x => { const q = x.brl / x.price; ev.push({date:x.date, tipo:'Bitcoin', amount:x.brl, gain:!M.btc ? 0 : S.sales.length ? (qtot ? st.pl * q / qtot : 0) : q * btcPx() - x.brl, k:'d'}); });
   S.sales.forEach(x => { const i = st.salesInfo[x.id]; if (i) ev.push({date:x.date, tipo:'Bitcoin (venda)', amount:i.pr, gain:i.g, k:'w'}); });
   ev.sort((a, b) => a.date.localeCompare(b.date) || (a.k === 'd' ? -1 : 1));
   const dep = ev.filter(e => e.k === 'd').reduce((a, e) => a + e.amount, 0), wd = ev.filter(e => e.k === 'w').reduce((a, e) => a + e.amount, 0), gain = ev.reduce((a, e) => a + e.gain, 0);
@@ -874,9 +973,12 @@ $('b-broker').value = UI.bk || 'none'; $('b-url').value = UI.bu || ''; $('b-exch
 { const A = UI.sim2; $('a-asset').value = A.asset || 'BTC'; ['mon', 'mth', 'ret', 'dy', 'price'].forEach(k => { if (A[k] != null) $('a-' + k).value = A[k]; });
   $('a-token').value = UI.brapi || ''; $('a-dy').disabled = $('a-asset').value === 'BTC'; }
 $('c-init').value = UI.cmp.init; $('c-mon').value = UI.cmp.mon; $('c-mth').value = UI.cmp.mth; $('c-meta').value = UI.cmp.meta; renderRates(); compare();
+$('fx-usdbuy').value = UI.fx.usdBuy ?? ''; $('fx-usdsell').value = UI.fx.usdSell ?? ''; $('fx-btcbuy').value = UI.fx.btcBuy ?? ''; $('fx-btcsell').value = UI.fx.btcSell ?? ''; $('fx-use').checked = !!UI.fx.useApp; $('fx-val').checked = !!UI.fx.valueApp;
+$('cv-cur').innerHTML = Object.entries(CUR).map(([k, v]) => `<option value="${k}">${v} (${k})</option>`).join('');
+$('cv-cur').value = UI.cv.cur || 'EUR'; $('cv-brl').value = UI.cv.brl ?? ''; $('cv-amt').value = UI.cv.amt ?? ''; $('cv-spread').value = UI.cv.spread ?? ''; $('cv-iof').value = UI.cv.iof ?? '';
 $('ver').textContent = VERSION; applyPin(); initCollapse();
 $('d-date').value = today(); $('sl-date').value = today();
-renderMarket(); renderAll(); simulate();
+renderMarket(); renderAll(); renderFx(); renderCur(); simulate();
 renderQuotes(); if (UI.tv) loadTV();
 if (!UI.qAt || Date.now() - UI.qAt > 10 * 60e3) loadQuotes();
 setInterval(() => { if (!document.hidden) loadQuotes(); }, 15 * 60 * 1000);
