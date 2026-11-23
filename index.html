@@ -231,11 +231,11 @@
     <h2>Outras moedas e conversor</h2>
     <div id="fx-table" class="overflow-x-auto text-sm"></div>
     <div class="grid grid-cols-2 md:grid-cols-6 gap-2 items-end mt-4">
-      <div><label class="lbl" for="cv-brl">Tenho (R$)</label><input id="cv-brl" type="number" min="0" step="0.01" class="inp" onchange="UI.cv.mode = 'brl'; convert()"></div>
+      <div><label class="lbl" for="cv-brl">Tenho (R$)</label><input id="cv-brl" type="number" min="0" step="0.01" class="inp" oninput="UI.cv.mode = 'brl'; convert()"></div>
       <div><label class="lbl" for="cv-cur">Moeda</label><select id="cv-cur" class="inp" onchange="convert()"></select></div>
-      <div><label class="lbl" for="cv-amt">Quero comprar (na moeda)</label><input id="cv-amt" type="number" min="0" step="0.01" class="inp" onchange="UI.cv.mode = 'amt'; convert()"></div>
-      <div><label class="lbl" for="cv-spread">Spread do meu app (%)</label><input id="cv-spread" type="number" min="0" step="0.1" class="inp" onchange="convert()"></div>
-      <div><label class="lbl" for="cv-iof">IOF (%)</label><input id="cv-iof" type="number" min="0" step="0.1" class="inp" onchange="convert()"></div>
+      <div><label class="lbl" for="cv-amt">Quero comprar (na moeda)</label><input id="cv-amt" type="number" min="0" step="0.01" class="inp" oninput="UI.cv.mode = 'amt'; convert()"></div>
+      <div><label class="lbl" for="cv-spread">Spread do meu app (%)</label><input id="cv-spread" type="number" min="0" step="0.1" class="inp" oninput="convert()"></div>
+      <div><label class="lbl" for="cv-iof">IOF (%)</label><input id="cv-iof" type="number" min="0" step="0.1" class="inp" oninput="convert()"></div>
       <button class="chip !py-2.5" onclick="clearConv()">Limpar</button>
     </div>
     <div id="cv-out" class="mt-3 text-sm"></div>
@@ -297,7 +297,7 @@ let CDIH = read('inv-cdi', {});
 let UI = read('inv-ui', {});
 UI.sim = UI.sim || {mon:500, months:12}; UI.collapsed = UI.collapsed || {}; UI.fx = UI.fx || {}; UI.cv = UI.cv || {cur:'EUR', mode:'brl'};
 const saveUI = () => write('inv-ui', UI);
-const VERSION = '2.4.0 · nov/2026';
+const VERSION = '2.4.1 · nov/2026';
 const btcPx = () => (UI.fx.valueApp && +UI.fx.btcSell > 0) ? +UI.fx.btcSell : M.btc;
 const fxPx = k => (UI.fx.useApp && +UI.fx[k] > 0) ? +UI.fx[k] : M.btc;
 const LOSS = '<span class="inline-flex items-center gap-1 text-xs text-rose-400 font-normal ml-2 whitespace-nowrap"><span class="inline-block w-2 h-2 rounded-full bg-rose-400 animate-pulse"></span>prejuízo</span>';
@@ -852,15 +852,21 @@ function renderCur() {
   convert();
 }
 function convert() {
-  const cur = $('cv-cur').value || 'EUR', q = curQ(cur), out = $('cv-out');
-  UI.cv = {...UI.cv, brl:$('cv-brl').value, amt:$('cv-amt').value, cur, spread:$('cv-spread').value, iof:$('cv-iof').value}; saveUI();
+  const cur = $('cv-cur').value || 'EUR', q = curQ(cur), out = $('cv-out'), mode = UI.cv.mode === 'amt' ? 'amt' : 'brl';
+  UI.cv = {...UI.cv, brl:$('cv-brl').value, amt:$('cv-amt').value, cur, spread:$('cv-spread').value, iof:$('cv-iof').value, mode}; saveUI();
   if (!q) { out.innerHTML = '<p class="text-slate-400">Aguardando a cotação...</p>'; return; }
   const sp = (+UI.cv.spread || 0) / 100, io = (+UI.cv.iof || 0) / 100, rate = q.ask * (1 + sp) * (1 + io), brl0 = +UI.cv.brl, amt = +UI.cv.amt;
-  if (UI.cv.mode === 'amt' && amt > 0) {
-    out.innerHTML = `<p>Para comprar <b>${num(amt)} ${cur}</b> você paga cerca de <b class="text-emerald-400">${brl.format(amt * rate)}</b>. Cotação efetiva: ${rN(rate)} por unidade, ${num((rate / q.ask - 1) * 100, 2)}% acima da venda do mercado (${rN(q.ask)}).</p>`;
-  } else if (brl0 > 0) {
-    out.innerHTML = `<p>Com <b>${brl.format(brl0)}</b> você compra cerca de <b class="text-emerald-400">${num(brl0 / rate)} ${cur}</b>. Cotação efetiva: ${rN(rate)} por unidade, ${num((rate / q.ask - 1) * 100, 2)}% acima da venda do mercado (${rN(q.ask)}). Sem spread e IOF seriam ${num(brl0 / q.ask)} ${cur}.</p>`;
-  } else out.innerHTML = '<p class="text-slate-400">Digite quanto você tem em reais ou quanto quer comprar na moeda.</p>';
+  const extra = `Cotação efetiva: ${rN(rate)} por unidade, ${num((rate / q.ask - 1) * 100, 2)}% acima da venda do mercado (${rN(q.ask)}).`;
+  /* o campo editado por último manda; o outro é preenchido sozinho */
+  if (mode === 'amt') {
+    if (!(amt > 0)) { $('cv-brl').value = ''; out.innerHTML = '<p class="text-slate-400">Digite quanto você quer comprar na moeda.</p>'; return; }
+    $('cv-brl').value = (amt * rate).toFixed(2);
+    out.innerHTML = `<p>Para comprar <b>${num(amt)} ${cur}</b> você paga cerca de <b class="text-emerald-400">${brl.format(amt * rate)}</b>. ${extra}</p>`;
+  } else {
+    if (!(brl0 > 0)) { $('cv-amt').value = ''; out.innerHTML = '<p class="text-slate-400">Digite quanto você tem em reais ou quanto quer comprar na moeda.</p>'; return; }
+    $('cv-amt').value = (brl0 / rate).toFixed(2);
+    out.innerHTML = `<p>Com <b>${brl.format(brl0)}</b> você compra cerca de <b class="text-emerald-400">${num(brl0 / rate)} ${cur}</b>. ${extra} Sem spread e IOF seriam ${num(brl0 / q.ask)} ${cur}.</p>`;
+  }
 }
 function clearConv() { ['brl', 'amt', 'spread', 'iof'].forEach(k => $('cv-' + k).value = ''); UI.cv = {cur:$('cv-cur').value, mode:'brl'}; saveUI(); convert(); }
 function renderHist() {
