@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Investimentos e Bitcoin</title>
+<meta name="theme-color" content="#020617">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Investimentos">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .card{background:rgba(15,23,42,.86);backdrop-filter:blur(6px);border:1px solid #1e293b;border-radius:1rem;padding:1.25rem}
+  .inp{width:100%;background:#020617;border:1px solid #1e293b;border-radius:.6rem;padding:.5rem .75rem;color:#f1f5f9;min-width:0}
+  .inp:focus-visible,.btn:focus-visible{outline:2px solid #34d399;outline-offset:1px}
+  .lbl{display:block;font-size:.75rem;color:#94a3b8;margin-bottom:.25rem}
+  .btn{background:#10b981;color:#022c22;font-weight:600;border-radius:.6rem;padding:.55rem 1rem}
+  .btn:hover{background:#34d399}
+  .chip{font-size:.75rem;padding:.25rem .7rem;border-radius:999px;border:1px solid #334155;color:#cbd5e1}
+  .chip.on{background:#f59e0b;color:#1c1100;border-color:#f59e0b}
+  h2{font-weight:600;font-size:1.05rem;margin-bottom:.9rem}
+  /* Fundo temático, setas de recolher */
+  :root{--grad:linear-gradient(135deg,#020617 0%,#04302b 50%,#0a1535 100%)}
+  html.light{--grad:linear-gradient(135deg,#ecfdf5 0%,#eff6ff 50%,#fff7ed 100%)}
+  body{background:var(--bgimg,none) center bottom/cover no-repeat fixed,var(--grad) fixed}
+  .chev{font-size:.85rem;color:#94a3b8;padding:0 .4rem;line-height:1}
+  h2.cap{display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+  .card.collapsed h2{margin-bottom:0}
+  .card.collapsed{flex:none}
+  .chip:disabled{opacity:.4;cursor:default}
+  #topbar .lbl{margin-bottom:0;font-size:.68rem}
+  #topbar .chip{padding:.1rem .55rem;font-size:.7rem}
+  #topbar{background:rgba(2,6,23,.88);backdrop-filter:blur(10px);border-bottom:1px solid #1e293b}
+  #topbar.pin{position:sticky;top:0;z-index:50}
+  html.light #topbar{background:rgba(255,255,255,.92);border-color:#e2e8f0}
+  /* Modo claro */
+  html.light body{color:#0f172a}
+  html.light .bg-slate-950{background:#f1f5f9;color:#0f172a}
+  html.light .bg-slate-900{background:#fff}
+  html.light .card{background:rgba(255,255,255,.88);border-color:#e2e8f0}
+  html.light .inp{background:#f8fafc;border-color:#cbd5e1;color:#0f172a}
+  html.light .bg-slate-800{background:#e2e8f0}
+  html.light .border-slate-800,html.light .divide-slate-800>*{border-color:#e2e8f0}
+  html.light .text-slate-100{color:#0f172a}
+  html.light .text-slate-300,html.light .text-slate-400{color:#475569}
+  html.light .text-slate-500,html.light .lbl{color:#64748b}
+  html.light .chip{border-color:#cbd5e1;color:#475569}
+  html.light .chip.on{color:#1c1100;border-color:#f59e0b}
+  html.light .text-emerald-400{color:#047857}
+  html.light .text-amber-400{color:#b45309}
+  html.light .text-sky-400{color:#0369a1}
+  html.light .text-rose-400{color:#be123c}
+</style>
+</head>
+<body class="text-slate-100 min-h-screen">
+
+<div id="topbar">
+<header>
+  <div class="max-w-7xl mx-auto px-4 py-1 flex items-center justify-between gap-3">
+    <div class="min-w-0">
+      <h1 class="text-base sm:text-lg font-bold tracking-tight truncate">Meus Investimentos e Bitcoin</h1>
+      <p id="greet" class="text-xs text-slate-400 truncate"></p>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="text-right leading-tight">
+        <div class="font-mono text-lg sm:text-xl font-semibold tracking-tight text-emerald-400"><span id="live-hm">00:00</span><span id="live-s" class="text-xs sm:text-sm text-slate-400">:00</span></div>
+        <div id="live-date" class="text-[11px] sm:text-xs text-slate-400"></div>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-1">
+        <button id="theme-btn" class="chip" onclick="toggleTheme()" aria-label="Alternar tema claro ou escuro"></button>
+        <button id="pin-btn" class="chip" onclick="togglePin()" aria-label="Fixar ou soltar o topo da página"></button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="max-w-7xl mx-auto px-4 pt-0.5 pb-1.5">
+  <div id="profit-flag" class="hidden" role="status"></div>
+  <div id="loss-flag" class="hidden" role="status"></div>
+  <div class="flex gap-2 overflow-x-auto pb-1 text-center lg:grid lg:grid-cols-7 lg:overflow-visible">
+    <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">CDI</span><b id="m-cdi" class="text-base text-emerald-400">—</b></div>
+    <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">Selic meta</span><b id="m-selic" class="text-base text-emerald-400">—</b></div>
+    <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">IPCA (12 meses)</span><b id="m-ipca" class="text-base text-rose-400">—</b><span id="m-ipca-ref" class="block text-xs text-slate-500"></span></div>
+    <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">IGP-M aluguel (12m)</span><b id="m-igpm" class="text-base text-amber-400">—</b><span id="m-igpm-ref" class="block text-xs text-slate-500"></span></div>
+    <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">Dólar comercial</span><b id="m-usd" class="text-base text-sky-400">—</b><span id="m-usd2" class="block text-xs text-slate-500"></span></div>
+    <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">Bitcoin (R$)</span><b id="m-btc" class="text-base text-amber-400">—</b><span id="m-chg" class="block text-xs"></span></div>
+    <div class="card !px-2 !py-1 shrink-0 min-w-[112px] lg:min-w-0"><span class="lbl">Patrimônio total</span><b id="m-total" class="text-base">—</b><span id="m-gain" class="block text-xs"></span></div>
+  </div>
+  </section>
+<nav class="max-w-7xl mx-auto px-4 pb-1.5 flex gap-2" aria-label="Seções do painel">
+  <button id="tab-dash" class="chip" onclick="showTab('dash')">Painel</button>
+  <button id="tab-adm" class="chip" onclick="showTab('adm')">Administração</button>
+</nav>
+</div>
+<p id="status" class="max-w-7xl mx-auto px-4 pt-2 text-xs text-slate-500 text-right" aria-live="polite"></p>
+
+<main id="view-dash" class="max-w-7xl mx-auto px-4 py-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="flex flex-col gap-6">
+    <div class="card flex-1">
+      <h2>Caixinhas</h2>
+      <div id="boxes" class="space-y-3"></div>
+      <button class="btn mt-4 w-full" onclick="addBox()">Adicionar caixinha</button>
+    </div>
+  </div>
+  <div class="lg:col-span-2 flex flex-col gap-6">
+    <div class="card">
+        <h2><span>Compras de Bitcoin (DCA) <span id="btc-flag"></span></span></h2>
+        <div class="grid grid-cols-3 gap-2">
+          <div><label class="lbl" for="d-date">Data</label><input id="d-date" type="date" class="inp"></div>
+          <div><label class="lbl" for="d-brl">Valor (R$)</label><input id="d-brl" type="number" min="0" step="0.01" class="inp"></div>
+          <div><label class="lbl" for="d-price">Preço do BTC</label><input id="d-price" type="number" min="0" step="0.01" class="inp" placeholder="preço atual"></div>
+        </div>
+        <button class="btn mt-3 w-full" onclick="addDca()">Registrar compra</button>
+        <div class="grid grid-cols-3 gap-2 mt-3">
+          <div><label class="lbl" for="sl-date">Data da venda</label><input id="sl-date" type="date" class="inp"></div>
+          <div><label class="lbl" for="sl-brl">Valor vendido (R$)</label><input id="sl-brl" type="number" min="0" step="0.01" class="inp"></div>
+          <div><label class="lbl" for="sl-price">Preço do BTC</label><input id="sl-price" type="number" min="0" step="0.01" class="inp" placeholder="preço atual"></div>
+        </div>
+        <button class="btn mt-2 w-full !bg-rose-500 hover:!bg-rose-400 !text-white" onclick="addSale()">Registrar venda</button>
+        <div id="dca-sum" class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4 text-sm"></div>
+        <div id="dca-list" class="mt-3 max-h-48 overflow-y-auto text-sm divide-y divide-slate-800"></div>
+        <button class="text-xs text-slate-500 hover:text-rose-400 mt-2 underline" onclick="clearDca()">Apagar todas as compras</button>
+      </div>
+    <div class="card">
+      <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+        <h2 class="!mb-0">Bitcoin em reais</h2>
+        <div class="flex gap-2" role="group" aria-label="Período do gráfico">
+          <button class="chip on" data-r="1">24h</button>
+          <button class="chip" data-r="7">7d</button>
+          <button class="chip" data-r="30">30d</button>
+          <button class="chip" data-r="365">1 ano</button>
+        </div>
+      </div>
+      <div class="h-[280px]"><canvas id="btcChart" role="img" aria-label="Gráfico do preço do Bitcoin"></canvas></div>
+    </div>
+    <div class="card flex-1">
+      <h2>Simulador de aportes</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
+        <div><label class="lbl" for="s-mon">Aporte mensal (R$)</label><input id="s-mon" type="number" min="0" value="500" class="inp" onchange="simulate()"></div>
+        <div><label class="lbl" for="s-mth">Prazo (meses)</label><input id="s-mth" type="number" min="1" max="600" value="12" class="inp" onchange="simulate()"></div>
+        <button class="btn" onclick="simulate()">Simular</button>
+        <button class="chip !py-2.5" onclick="clearSim()">Limpar</button>
+      </div>
+      <div id="sim" class="mt-4 text-sm grid md:grid-cols-2 gap-3"></div>
+    </div>
+  </div>
+  <div class="lg:col-span-3 grid md:grid-cols-2 gap-6">
+    <div class="card">
+          <h2>Distribuição</h2>
+          <div class="h-[260px]"><canvas id="pie" role="img" aria-label="Distribuição do patrimônio"></canvas></div>
+        </div>
+    <div class="card">
+          <h2>Ganhos e perdas</h2>
+          <div class="h-[260px]"><canvas id="gainChart" role="img" aria-label="Ganho ou perda por ativo"></canvas></div>
+          <p class="text-xs text-slate-500 mt-2">Verde: ganho. Vermelho: perda. Valores brutos, antes de IR e IOF.</p>
+        </div>
+  </div>
+  <div class="card lg:col-span-3">
+    <h2>Histórico de aportes e rendimentos</h2>
+    <div id="hist-sum" class="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm mb-4"></div>
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="h-[240px]"><canvas id="histChart" role="img" aria-label="Aportes acumulados e valor atual"></canvas></div>
+      <div id="hist-list" class="max-h-[240px] overflow-y-auto divide-y divide-slate-800"></div>
+    </div>
+    <p class="text-xs text-slate-500 mt-3">Rendimentos brutos, antes de IR e IOF, como mostram os apps dos bancos. Dias passados usam o CDI diário real do Banco Central; o futuro usa o CDI atual. Nas retiradas e vendas, o ganho mostrado é o realizado na data.</p>
+  </div>
+  <div class="card lg:col-span-3">
+    <h2>Simulador de Bitcoin e ações</h2>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
+      <div class="col-span-2 md:col-span-1"><label class="lbl" for="a-asset">Ativo</label><select id="a-asset" class="inp" onchange="onAsset()"></select></div>
+      <div><label class="lbl" for="a-price">Cotação (R$)</label><input id="a-price" type="number" min="0" step="0.01" class="inp" onchange="UI.sim2.manual = true; assetSim()"></div>
+      <div><label class="lbl" for="a-mon">Aporte mensal (R$)</label><input id="a-mon" type="number" min="0" value="500" class="inp" onchange="assetSim()"></div>
+      <div><label class="lbl" for="a-mth">Prazo (meses)</label><input id="a-mth" type="number" min="1" max="600" value="12" class="inp" onchange="assetSim()"></div>
+      <div><label class="lbl" for="a-ret">Valorização (% a.a.)</label><input id="a-ret" type="number" step="0.5" value="10" class="inp" onchange="assetSim()"></div>
+      <div><label class="lbl" for="a-dy">Dividendos (% a.a.)</label><input id="a-dy" type="number" min="0" step="0.5" value="0" class="inp" onchange="assetSim()"></div>
+    </div>
+    <div class="flex flex-wrap gap-2 mt-3 items-center">
+      <button class="btn" onclick="assetSim()">Simular</button>
+      <button class="chip !py-2.5" onclick="fetchQuote()">Atualizar cotação</button>
+      <button class="chip !py-2.5" onclick="clearAsset()">Limpar</button>
+      <span id="a-status" class="text-xs text-slate-400"></span>
+    </div>
+    <p class="mt-2 text-xs text-slate-500">Cotação automática das ações: veja o card Cotações da bolsa e compra.</p>
+    <div id="a-out" class="mt-4"></div>
+    <div class="h-[220px] mt-3"><canvas id="assetChart" role="img" aria-label="Evolução do total aportado e do valor projetado"></canvas></div>
+    <p class="text-xs text-slate-500 mt-2">Projeção hipotética: a valorização informada se repete todo ano e os dividendos são reinvestidos, sem desconto de imposto (confirme a regra para o seu volume). Ações e Bitcoin podem perder valor. IR estimado: ações pagam 15% do lucro se a venda no mês passar de R$ 20 mil; Bitcoin segue a regra escolhida no card de compras. Não é recomendação de investimento.</p>
+  </div>
+  <div class="card lg:col-span-3">
+    <h2>Comparar investimentos de renda fixa</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
+      <div><label class="lbl" for="c-init">Valor inicial (R$)</label><input id="c-init" type="number" min="0" value="10000" class="inp" onchange="compare()"></div>
+      <div><label class="lbl" for="c-mon">Aporte mensal (R$)</label><input id="c-mon" type="number" min="0" value="500" class="inp" onchange="compare()"></div>
+      <div><label class="lbl" for="c-mth">Prazo (meses)</label><input id="c-mth" type="number" min="1" max="600" value="12" class="inp" onchange="compare()"></div>
+      <div><label class="lbl" for="c-meta">Meta líquida (R$, opcional)</label><input id="c-meta" type="number" min="0" step="1000" class="inp" onchange="compare()"></div>
+    </div>
+    <p class="lbl mt-3">Taxas (edite com as que sua corretora mostra hoje)</p>
+    <div id="c-rates" class="grid grid-cols-2 md:grid-cols-4 gap-2"></div>
+    <div class="flex flex-wrap gap-2 mt-3">
+      <button class="btn" onclick="compare()">Comparar</button>
+      <button class="chip !py-2.5" onclick="clearCmp()">Limpar</button>
+      <button class="chip !py-2.5" onclick="resetRates()">Restaurar taxas</button>
+    </div>
+    <div id="c-out" class="mt-4 overflow-x-auto"></div>
+    <p class="text-xs text-slate-500 mt-2">CDI, Selic e IPCA vêm dos indicadores do painel. As taxas de Tesouro IPCA+, CDB e LCI/LCA são exemplos editáveis e mudam toda semana: confira a taxa do dia antes de decidir. Tesouro e CDB pagam IR regressivo, por aporte (de 22,5% a 15%); LCI/LCA e poupança são consideradas isentas de IR para pessoa física (confirme se a regra mudou). No Tesouro, a B3 cobra custódia de cerca de 0,20% ao ano, que o cálculo desconta (há isenções em alguns casos). LCI/LCA costumam ter carência e menos liquidez. A poupança usa a regra atual de 0,5% ao mês mais TR (a TR é ignorada). IPCA futuro = IPCA dos últimos 12 meses mantido. Estimativa, não recomendação de investimento.</p>
+  </div>
+  <div class="card lg:col-span-3">
+    <h2>Dólar e Bitcoin: referência × meu app</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div>
+        <p class="lbl">Dólar comercial (referência do mercado)</p>
+        <div id="fx-usd" class="grid grid-cols-2 gap-2 text-sm"></div>
+        <div class="grid grid-cols-2 gap-2 mt-3">
+          <div><label class="lbl" for="fx-usdbuy">Dólar no meu app: eu compro a (R$)</label><input id="fx-usdbuy" type="number" min="0" step="0.0001" class="inp" onchange="saveFx()"></div>
+          <div><label class="lbl" for="fx-usdsell">Dólar no meu app: eu vendo a (R$)</label><input id="fx-usdsell" type="number" min="0" step="0.0001" class="inp" onchange="saveFx()"></div>
+        </div>
+      </div>
+      <div>
+        <p class="lbl">Bitcoin (referência do painel)</p>
+        <div id="fx-btc" class="grid grid-cols-2 gap-2 text-sm"></div>
+        <div class="grid grid-cols-2 gap-2 mt-3">
+          <div><label class="lbl" for="fx-btcbuy">Bitcoin no meu app: eu compro a (R$)</label><input id="fx-btcbuy" type="number" min="0" step="0.01" class="inp" onchange="saveFx()"></div>
+          <div><label class="lbl" for="fx-btcsell">Bitcoin no meu app: eu vendo a (R$)</label><input id="fx-btcsell" type="number" min="0" step="0.01" class="inp" onchange="saveFx()"></div>
+        </div>
+      </div>
+    </div>
+    <div id="fx-out" class="mt-3 grid md:grid-cols-2 gap-2 text-sm"></div>
+    <div class="flex flex-col gap-1 mt-3 text-xs text-slate-400">
+      <label><input type="checkbox" id="fx-use" onchange="saveFx()"> Usar o preço do app ao registrar compras e vendas de Bitcoin (quando o campo preço ficar vazio)</label>
+      <label><input type="checkbox" id="fx-val" onchange="saveFx()"> Valorizar meu Bitcoin pelo preço de venda do app, em vez da referência</label>
+    </div>
+    <p class="text-xs text-slate-500 mt-2">Na referência, a venda (ask) é o preço que o mercado cobra de quem compra, e a compra (bid) é o que ele paga a quem vende. Digite os preços que o seu app mostra na hora. O painel compara só o preço: IOF e tarifas ficam de fora. O dólar vem da AwesomeAPI e fica parado quando o câmbio está fechado (noites e fins de semana). O dólar turismo só aparece se a API informar.</p>
+  </div>
+  <div class="card lg:col-span-3">
+    <h2>Outras moedas e conversor</h2>
+    <div id="fx-table" class="overflow-x-auto text-sm"></div>
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-2 items-end mt-4">
+      <div><label class="lbl" for="cv-brl">Tenho (R$)</label><input id="cv-brl" type="number" min="0" step="0.01" class="inp" oninput="UI.cv.mode = 'brl'; convert()"></div>
+      <div><label class="lbl" for="cv-cur">Moeda</label><select id="cv-cur" class="inp" onchange="convert()"></select></div>
+      <div><label class="lbl" for="cv-amt">Quero comprar (na moeda)</label><input id="cv-amt" type="number" min="0" step="0.01" class="inp" oninput="UI.cv.mode = 'amt'; convert()"></div>
+      <div><label class="lbl" for="cv-spread">Spread do meu app (%)</label><input id="cv-spread" type="number" min="0" step="0.1" class="inp" oninput="convert()"></div>
+      <div><label class="lbl" for="cv-iof">IOF (%)</label><input id="cv-iof" type="number" min="0" step="0.1" class="inp" oninput="convert()"></div>
+      <button class="chip !py-2.5" onclick="clearConv()">Limpar</button>
+    </div>
+    <div id="cv-out" class="mt-3 text-sm"></div>
+    <p class="text-xs text-slate-500 mt-2">O conversor usa a venda (ask) do mercado, que é o preço de quem compra moeda, e soma o spread e o IOF que você informar. Confira no seu app o spread e o IOF da operação, porque mudam conforme o produto. Cotações da AwesomeAPI; as moedas ficam paradas quando o câmbio está fechado.</p>
+  </div>
+  <div class="card lg:col-span-3">
+    <h2>Cotações da bolsa e compra</h2>
+    <div class="flex flex-wrap gap-2 items-end mb-3">
+      <div><label class="lbl" for="b-broker">Minha corretora (ações)</label><select id="b-broker" class="inp" onchange="setBroker()"></select></div>
+      <div id="b-custom-wrap" class="hidden"><label class="lbl" for="b-url">Endereço (https://)</label><input id="b-url" class="inp" placeholder="https://sua-corretora.com.br" onchange="setBroker()"></div>
+      <div><label class="lbl" for="b-exch">Onde compro Bitcoin</label><select id="b-exch" class="inp" onchange="setBroker()"></select></div>
+      <div><label class="lbl" for="q-add">Adicionar ticker</label><div class="flex gap-1"><input id="q-add" class="inp !w-28" placeholder="BBSE3" maxlength="7"><button class="chip" onclick="addWatch()" aria-label="Adicionar ticker">+</button></div></div>
+      <button class="chip !py-2.5" onclick="loadQuotes()">Atualizar cotações</button>
+    </div>
+    <div id="q-table" class="overflow-x-auto text-sm"></div>
+    <p id="q-note" class="text-xs text-slate-400 mt-2"></p>
+    <details class="mt-2 text-xs text-slate-400">
+      <summary class="cursor-pointer">Cotação de todas as ações (token gratuito da brapi)</summary>
+      <p class="mt-1">Sem token, só Petrobras, Magazine Luiza, Vale e Itaú carregam. Para as demais: crie uma conta grátis em brapi.dev, gere seu token no painel e cole abaixo. Ele fica salvo só neste navegador. O plano gratuito consulta 1 ação por vez, com atraso de cerca de 15 a 30 minutos, e o painel atualiza a cada 15 minutos.</p>
+      <input id="a-token" type="password" class="inp mt-1 max-w-xs" placeholder="Token da brapi" autocomplete="off" onchange="UI.brapi = this.value.trim(); saveUI(); loadQuotes()">
+    </details>
+    <p class="text-xs text-slate-500 mt-2">O botão Comprar abre o site da corretora em outra aba, onde você entra na sua conta e faz a ordem. Não existe link que compre direto, e por isso não montei links por ativo. Confira o endereço na barra do navegador, veja se a corretora é autorizada (CVM e B3; no caso de Bitcoin, confira a exchange) e nunca entre por links recebidos em mensagens.</p>
+  </div>
+  <div class="card lg:col-span-3">
+    <h2>Mercado ao vivo (TradingView)</h2>
+    <div class="flex flex-wrap gap-2 items-center mb-3">
+      <button class="btn" id="tv-btn" onclick="loadTV()">Carregar mercado ao vivo</button>
+      <span class="text-xs text-slate-400">Cotações e gráficos de qualquer ativo da B3, com atraso de cerca de 15 min. No gráfico, digite o ticker para trocar de ativo.</span>
+    </div>
+    <div id="tv-tape"></div>
+    <div id="tv-chart" class="mt-3"></div>
+    <p class="text-xs text-slate-500 mt-2">São widgets do TradingView, carregados de s3.tradingview.com apenas depois que você clica no botão. Depois de carregar, o painel os abre sozinho nas próximas visitas.</p>
+  </div>
+</main>
+<main id="view-admin" class="hidden max-w-7xl mx-auto px-4 py-5 space-y-6">
+  <div class="card">
+    <h2>Administração das caixinhas</h2>
+    <p class="text-xs text-slate-400 mb-3">Crie, edite, reordene e exclua caixinhas. As mudanças valem na hora para o painel, o simulador e o histórico, e os aportes e retiradas de cada caixinha ficam guardados.</p>
+    <div id="adm-list" class="space-y-3"></div>
+    <div class="flex flex-wrap gap-2 mt-4 items-center">
+      <button class="btn" onclick="admAdd()">Nova caixinha</button>
+      <select id="adm-preset" class="inp !w-auto" aria-label="Modelo de caixinha"></select>
+      <button class="chip !py-2.5" onclick="admPreset()">Adicionar modelo</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Dados e backup</h2>
+    <div class="flex flex-wrap items-center gap-2">
+      <button class="chip" onclick="exportData()">Exportar dados</button>
+      <button class="chip" onclick="importData()">Importar dados</button>
+      <button class="chip hover:text-rose-400" onclick="resetAll()">Apagar tudo</button>
+    </div>
+    <p class="text-xs text-slate-500 mt-2">Os dados ficam só neste navegador e neste endereço. Exporte um backup de vez em quando.</p>
+  </div>
+</main>
+
+<footer class="max-w-7xl mx-auto px-4 pb-8 text-xs text-slate-500">
+  Simulações são estimativas (CDI projetado constante, IR regressivo por aporte) e não são recomendação de investimento.
+  <div class="flex flex-wrap items-center gap-2 mt-3"><span class="text-slate-400 text-sm">Backup dos dados:</span><button class="chip" onclick="exportData()">Exportar dados</button><button class="chip" onclick="importData()">Importar dados</button><button class="chip hover:text-rose-400" onclick="resetAll()">Apagar tudo</button></div>
+<p class="text-right mt-4 text-[11px] opacity-70">Desenvolvido por Marco Antonio Silva de Oliveira · v<span id="ver"></span></p></footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const brl = new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'});
+const num = (n, d=2) => n.toLocaleString('pt-BR', {minimumFractionDigits:d, maximumFractionDigits:d});
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const read = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) || def } catch(e) { return def } };
+const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch(e) {} };
+
+const today = () => { const n = new Date(); return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0'); };
+const daysSince = d => Math.max(0, Math.floor((new Date(today()) - new Date(d)) / 864e5));
+const fd = s => s.split('-').reverse().join('/');
+const IOF = [96,93,90,86,83,80,76,73,70,66,63,60,56,53,50,46,43,40,36,33,30,26,23,20,16,13,10,6,3,0];
+const iofRate = d => d >= 30 ? 0 : IOF[Math.max(1, d) - 1] / 100;
+let S = read('inv-v2', {boxes:[{id:1,name:'Mercado Pago',pct:120,limit:10000,pct2:100,deps:[]},{id:2,name:'Nubank',pct:115,limit:5000,pct2:100,deps:[]}], dca:[], btcWhere:'br'});
+S.btcWhere = S.btcWhere || 'br'; S.sales = S.sales || [];
+S.seed = S.seed || {};
+if (!S.seed.virada) {
+  if (!S.boxes.some(b => /virada/i.test(b.name))) S.boxes.push({id:Date.now() + 7, name:'Cofrinho da Virada', pct:130, limit:5000, pct2:100, until:'2027-02-11', pctAfter:100, deps:[], wds:[]});
+  S.seed.virada = true;
+}
+S.boxes.forEach(b => { b.deps = b.deps || []; b.wds = b.wds || []; if (b.limit === undefined) { b.limit = /mercado/i.test(b.name) ? 10000 : /nubank/i.test(b.name) ? 5000 : 0; b.pct2 = 100; } if (b.balance > 0) b.deps.push({id:Date.now() + b.id, date:today(), amount:b.balance}); delete b.balance; });
+const openBoxes = new Set(S.boxes.map(b => b.id));
+let CDIH = read('inv-cdi', {});
+let UI = read('inv-ui', {});
+UI.sim = UI.sim || {mon:500, months:12}; UI.collapsed = UI.collapsed || {}; UI.fx = UI.fx || {}; UI.cv = UI.cv || {cur:'EUR', mode:'brl'};
+const saveUI = () => write('inv-ui', UI);
+const VERSION = '2.6.1 · nov/2026';
+const btcPx = () => (UI.fx.valueApp && +UI.fx.btcSell > 0) ? +UI.fx.btcSell : M.btc;
+const fxPx = k => (UI.fx.useApp && +UI.fx[k] > 0) ? +UI.fx[k] : M.btc;
+const LOSS = '<span class="inline-flex items-center gap-1 text-xs text-rose-400 font-normal ml-2 whitespace-nowrap"><span class="inline-block w-2 h-2 rounded-full bg-rose-400 animate-pulse"></span>prejuízo</span>';
+function applyPin() { const p = UI.pin !== false; $('topbar').classList.toggle('pin', p); $('pin-btn').textContent = p ? 'Fixo' : 'Solto'; $('pin-btn').setAttribute('aria-pressed', String(p)); }
+function togglePin() { UI.pin = (UI.pin === false); saveUI(); applyPin(); }
+const FLAG = '<span class="inline-flex items-center gap-1 text-xs text-emerald-400 font-normal ml-2 whitespace-nowrap"><span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>lucro</span>';
+let M = read('inv-mkt', {cdi:13.65, selic:13.75, usd:5.79, btc:null, chg:null});
+let lastUpdate = null, range = 1;
+const save = () => write('inv-v2', S);
+const COLORS = ['#10b981','#6366f1','#0ea5e9','#ec4899','#14b8a6','#a855f7','#f43f5e','#84cc16'];
+
+/* Relógio */
+function tick() {
+  const n = new Date();
+  $('live-hm').textContent = n.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  $('live-s').textContent = ':' + String(n.getSeconds()).padStart(2, '0');
+  const dt = n.toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  $('live-date').textContent = dt.charAt(0).toUpperCase() + dt.slice(1);
+  const hr = n.getHours();
+  const pp = Object.fromEntries(new Intl.DateTimeFormat('en-US', {timeZone:'America/Sao_Paulo', weekday:'short', hour:'numeric', hour12:false}).formatToParts(n).map(x => [x.type, x.value]));
+  const aberto = !['Sat', 'Sun'].includes(pp.weekday) && (+pp.hour % 24) >= 10 && (+pp.hour % 24) < 17;
+  $('greet').innerHTML = (hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite') + ', Marco · <span title="Pregão regular das 10h às 17h em dias úteis (não considera feriados)"><span class="' + (aberto ? 'text-emerald-400' : 'text-slate-500') + '">●</span> B3 ' + (aberto ? 'aberta' : 'fechada') + '</span>';
+  if (lastUpdate) $('status').textContent = 'Cotações atualizadas há ' + Math.round((Date.now()-lastUpdate)/1000) + 's';
+}
+setInterval(tick, 1000); tick();
+
+/* IR regressivo (renda fixa): por dias corridos */
+const irRate = d => d <= 180 ? .225 : d <= 360 ? .20 : d <= 720 ? .175 : .15;
+const mRate = pct => Math.pow(1 + (M.cdi/100) * (pct/100), 1/12) - 1;
+
+/* Mercado */
+async function getJson(url) { const r = await fetch(url); if (!r.ok) throw new Error(r.status); return r.json(); }
+async function loadMarket() {
+  const jobs = [
+    getJson('https://api.bcb.gov.br/dados/serie/bcdata.sgs.4389/dados/ultimos/1?formato=json').then(d => M.cdi = parseFloat(d[0].valor)),
+    getJson('https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json').then(d => M.selic = parseFloat(d[0].valor)),
+    getJson('https://api.bcb.gov.br/dados/serie/bcdata.sgs.13522/dados/ultimos/1?formato=json').then(d => { M.ipca = parseFloat(d[0].valor); M.ipcaRef = d[0].data.slice(3); }),
+    getJson('https://api.bcb.gov.br/dados/serie/bcdata.sgs.189/dados/ultimos/12?formato=json').then(d => { if (d.length < 12) throw new Error('igpm'); M.igpm = (d.reduce((a, x) => a * (1 + parseFloat(x.valor) / 100), 1) - 1) * 100; M.igpmRef = d[d.length - 1].data.slice(3); }),
+    getJson('https://economia.awesomeapi.com.br/json/last/USD-BRL').then(d => { const u = d.USDBRL; M.usd = parseFloat(u.bid); M.usdAsk = parseFloat(u.ask); M.usdHi = parseFloat(u.high); M.usdLo = parseFloat(u.low); M.usdPct = parseFloat(u.pctChange); M.usdAt = (+u.timestamp || 0) * 1000; }),
+    getJson('https://economia.awesomeapi.com.br/json/last/USD-BRLT').then(d => { const u = d.USDBRLT; M.usdTur = {bid:parseFloat(u.bid), ask:parseFloat(u.ask)}; }).catch(() => {}),
+    getJson('https://economia.awesomeapi.com.br/json/last/EUR-BRL,GBP-BRL,ARS-BRL,CAD-BRL,CHF-BRL,JPY-BRL').then(d => { M.fxs = {}; Object.values(d).forEach(u => { M.fxs[u.code] = {bid:parseFloat(u.bid), ask:parseFloat(u.ask), pct:parseFloat(u.pctChange), at:(+u.timestamp || 0) * 1000}; }); }).catch(() => {}),
+    getJson('https://economia.awesomeapi.com.br/json/last/BTC-BRL').then(d => { const u = d.BTCBRL; M.btcBid = parseFloat(u.bid); M.btcAsk = parseFloat(u.ask); }).catch(() => {}),
+    getJson('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=brl&include_24hr_change=true').then(d => { M.btc = d.bitcoin.brl; M.chg = d.bitcoin.brl_24h_change; })
+  ];
+  const res = await Promise.allSettled(jobs);
+  if (res.some(r => r.status === 'fulfilled')) { lastUpdate = Date.now(); write('inv-mkt', M); }
+  if (res.some(r => r.status === 'rejected')) $('status').textContent = 'Algumas cotações falharam; usando o último valor salvo.';
+  renderMarket(); syncBtcPrice(); renderQuotes(); compare(); renderFx(); renderCur();
+  if ($('boxes').contains(document.activeElement) || $('adm-list').contains(document.activeElement)) { renderDca(); renderPie(); renderHist(); } else renderAll();
+}
+function renderMarket() {
+  $('m-cdi').textContent = num(M.cdi) + '% a.a.';
+  $('m-selic').textContent = num(M.selic) + '% a.a.';
+  $('m-ipca').textContent = M.ipca != null ? num(M.ipca) + '%' : '—';
+  $('m-ipca-ref').textContent = M.ipcaRef ? 'acumulado até ' + M.ipcaRef : '';
+  $('m-igpm').textContent = M.igpm != null ? num(M.igpm) + '%' : '—';
+  $('m-igpm-ref').textContent = M.igpmRef ? 'acumulado até ' + M.igpmRef : '';
+  $('m-usd2').textContent = M.usdAsk ? 'venda ' + brl.format(M.usdAsk) : '';
+  $('m-usd').textContent = brl.format(M.usd);
+  $('m-btc').textContent = M.btc ? brl.format(M.btc) : '—';
+  const c = $('m-chg');
+  if (M.chg != null) { c.textContent = (M.chg >= 0 ? '+' : '') + num(M.chg) + '% em 24h'; c.className = 'block text-xs ' + (M.chg >= 0 ? 'text-emerald-400' : 'text-rose-400'); }
+}
+
+/* Gráfico BTC */
+Chart.defaults.color = '#94a3b8';
+const btcChart = new Chart($('btcChart'), {
+  type:'line',
+  data:{labels:[], datasets:[{data:[], borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.1)', borderWidth:2, fill:true, tension:.25, pointRadius:0}]},
+  options:{responsive:true, maintainAspectRatio:false, interaction:{intersect:false, mode:'index'},
+    plugins:{legend:{display:false}, tooltip:{callbacks:{label:c => brl.format(c.parsed.y)}}},
+    scales:{x:{grid:{color:'#1e293b'}, ticks:{maxTicksLimit:6}}, y:{grid:{color:'#1e293b'}, ticks:{callback:v => brl.format(v)}}}}
+});
+async function loadHistory() {
+  try {
+    const d = await getJson(`https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=brl&days=${range}`);
+    const step = Math.max(1, Math.floor(d.prices.length / 120));
+    const pts = d.prices.filter((_, i) => i % step === 0);
+    btcChart.data.labels = pts.map(p => { const t = new Date(p[0]); return range === 1 ? t.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : t.toLocaleDateString('pt-BR', {day:'2-digit', month:'short'}); });
+    btcChart.data.datasets[0].data = pts.map(p => p[1]);
+    btcChart.update();
+  } catch(e) { $('status').textContent = 'Não foi possível carregar o histórico do Bitcoin (limite da API ou sem conexão).'; }
+}
+document.querySelectorAll('.chip[data-r]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.chip[data-r]').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); range = +b.dataset.r; loadHistory();
+});
+
+/* Caixinhas: cada aporte tem data, IOF (< 30 dias) e IR regressivo próprios */
+/* Simulação diária: até o limite rende pct% do CDI; o que passar rende pct2%. O ganho é dividido entre os aportes na proporção do saldo de cada um. */
+function addDays(d, n) {
+  const t = new Date(d + 'T12:00:00'); t.setDate(t.getDate() + n);
+  return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+}
+/* Taxa do CDI de um dia (100% do CDI). Passado: série diária real do Banco Central. Sem dado: CDI atual em dias úteis. */
+const approxRate = () => Math.pow(1 + M.cdi / 100, 1 / 261) - 1; // 261 dias de semana por ano: o ano fecha no CDI anual
+function dayRate(d) {
+  if (CDIH.map && d >= CDIH.from && d <= CDIH.to) return (CDIH.map[d] || 0) / 100;
+  const wd = new Date(d + 'T12:00:00').getDay();
+  return wd === 0 || wd === 6 ? 0 : approxRate();
+}
+const lastRate = () => (CDIH.map && CDIH.map[CDIH.to] != null) ? CDIH.map[CDIH.to] / 100 : approxRate();
+async function loadCdiHist() {
+  const dates = S.boxes.flatMap(b => b.deps.map(d => d.date));
+  if (!dates.length) return;
+  const from = dates.reduce((a, c) => a < c ? a : c);
+  if (CDIH.from && CDIH.from <= from && CDIH.to >= addDays(today(), -1)) return;
+  try {
+    const d = await getJson(`https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=${fd(from)}&dataFinal=${fd(today())}`);
+    const map = {}; let to = '';
+    d.forEach(x => { const [dd, mm, yy] = x.data.split('/'), k = `${yy}-${mm}-${dd}`; map[k] = parseFloat(x.valor); if (k > to) to = k; });
+    if (!to) return;
+    CDIH = {from, to, map}; write('inv-cdi', CDIH); renderAll(); simulate();
+  } catch (e) {}
+}
+/* Simulação diária: o ganho de cada dia é dividido entre os aportes na proporção do saldo (o aporte só rende a partir do dia seguinte). Até o limite rende pct% do CDI; acima, pct2%. */
+function runLots(items, b, end, wds) {
+  end = end || today();
+  const dd = (a, c) => Math.max(0, Math.round((new Date(c + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5));
+  const lots = items.map(x => ({...x, v:x.amount, a:x.amount}));
+  if (!lots.length) { const e = []; e.real = []; return e; }
+  const lim = b.limit > 0 ? b.limit : Infinity, p1 = b.pct / 100, p2 = (b.pct2 ?? 100) / 100, pa = (b.pctAfter ?? 100) / 100, noTax = b.tax === 'iso';
+  const W = (wds || []).filter(w => w.date <= end).map(w => ({...w})).sort((x, y) => x.date.localeCompare(y.date)), real = [];
+  /* retirada: sai primeiro o aporte mais antigo; IR e IOF são calculados na data da retirada */
+  const doW = (w, d) => {
+    let need = w.amount, taken = 0, prin = 0, gain = 0, tax = 0;
+    lots.filter(l => l.start <= d && l.v > 1e-9).sort((x, y) => x.start.localeCompare(y.start)).forEach(l => {
+      if (need <= 1e-9) return;
+      const t = Math.min(l.v, need), fr = t / l.v, pr = l.a * fr, g = t - pr, age = dd(l.start, d), iof = noTax ? 0 : g * iofRate(age), ir = noTax ? 0 : (g - iof) * irRate(age);
+      l.v -= t; l.a -= pr; need -= t; taken += t; prin += pr; gain += g; tax += iof + ir;
+    });
+    real.push({id:w.id, date:w.date, req:w.amount, taken, prin, gain, tax, net:taken - tax});
+  };
+  let d = lots.reduce((m, l) => l.start < m ? l.start : m, end), wi = 0;
+  while (d < end) {
+    while (wi < W.length && W[wi].date <= d) doW(W[wi++], d);
+    const r = dayRate(d);
+    if (r) {
+      const act = lots.filter(l => l.start < d), B = act.reduce((a, l) => a + l.v, 0);
+      if (B) { const on = !(b.until && d > b.until), L = on ? lim : Infinity, q1 = on ? p1 : pa, q2 = on ? p2 : pa; const eff = r * (Math.min(B, L) * q1 + Math.max(0, B - L) * q2) / B; act.forEach(l => l.v *= 1 + eff); }
+    }
+    d = addDays(d, 1);
+  }
+  while (wi < W.length) doW(W[wi++], end);
+  const out = lots.map(l => { const age = dd(l.start, end), g = l.v - l.a, iof = noTax ? 0 : g * iofRate(age), ir = noTax ? 0 : (g - iof) * irRate(age);
+    return {age, g, v:l.v, principal:l.a, iof, ir, rate:noTax ? 0 : irRate(age), tax:iof + ir, net:l.v - iof - ir}; });
+  out.real = real; return out;
+}
+/* Rendimento bruto por dia útil sobre o saldo B, respeitando a faixa do limite */
+function dayYield(b, B) {
+  const r = lastRate(), lim = b.limit > 0 ? b.limit : Infinity;
+  if (b.until && today() > b.until) return r * B * (b.pctAfter ?? 100) / 100;
+  return r * (Math.min(B, lim) * b.pct / 100 + Math.max(0, B - lim) * (b.pct2 ?? 100) / 100);
+}
+function boxCalc(b) {
+  const res = runLots(b.deps.map(d => ({amount:d.amount, start:d.date})), b, null, b.wds);
+  const t = {dep:0, bal:0, unr:0, tax:0, net:0, wd:0, wdGain:0, wdTax:0, wdNet:0, items:{}, wds:{}};
+  b.deps.forEach((d, i) => { const c = res[i]; t.items[d.id] = c; t.dep += d.amount; t.bal += c.v; t.unr += c.g; t.tax += c.tax; t.net += c.net; });
+  (res.real || []).forEach(r => { t.wds[r.id] = r; t.wd += r.taken; t.wdGain += r.gain; t.wdTax += r.tax; t.wdNet += r.net; });
+  t.inv = t.dep; t.g = t.unr + t.wdGain; t.day = dayYield(b, t.bal);
+  return t;
+}
+const cell = (l, v, c = '') => `<div class="bg-slate-900 border border-slate-800 rounded-lg p-2"><span class="lbl !mb-0">${l}</span><b class="${c}">${v}</b></div>`;
+function ruleText(b) {
+  let t = b.limit > 0 ? `${b.pct}% do CDI até ${brl.format(b.limit)} e ${b.pct2 ?? 100}% acima` : `${b.pct}% do CDI`;
+  if (b.until) t += today() <= b.until ? `; promoção até ${fd(b.until)}, depois ${b.pctAfter ?? 100}%` : `; promoção encerrada em ${fd(b.until)} (agora ${b.pctAfter ?? 100}%)`;
+  if (b.tax === 'iso') t += '; isento de IR e IOF';
+  return t;
+}
+function renderBoxes() {
+  $('boxes').innerHTML = S.boxes.map((b, i) => {
+    const t = boxCalc(b);
+    const rows = b.deps.slice().sort((x, y) => y.date.localeCompare(x.date)).map(d => { const c = t.items[d.id];
+      return `<div class="py-2 text-xs"><div class="flex gap-2 items-center"><input type="date" class="inp !py-1" value="${d.date}" aria-label="Data do aporte" onchange="editDep(${b.id},${d.id},'date',this.value)"><input type="number" min="0" step="0.01" class="inp !py-1" value="${d.amount}" aria-label="Valor do aporte" onchange="editDep(${b.id},${d.id},'amount',+this.value)"><button class="text-slate-500 hover:text-rose-400 px-1" aria-label="Remover aporte" onclick="delDep(${b.id},${d.id})">✕</button></div><div class="flex justify-between text-slate-400 mt-1"><span class="text-slate-400">saldo ${brl.format(c.v)} · <span class="text-emerald-400">+${brl.format(c.g)}</span></span><span>${c.age}d · IR ${num(c.rate * 100, 1)}%${c.iof > 0 ? ' + IOF' : ''}</span></div></div>`; }).join('');
+    const wrows = (b.wds || []).slice().sort((x, y) => y.date.localeCompare(x.date)).map(w => { const r = t.wds[w.id] || {gain:0, tax:0, net:0, taken:0};
+      return `<div class="py-2 text-xs"><div class="flex gap-2 items-center"><span class="text-rose-400 shrink-0">Retirada</span><input type="date" class="inp !py-1" value="${w.date}" aria-label="Data da retirada" onchange="editWd(${b.id},${w.id},'date',this.value)"><input type="number" min="0" step="0.01" class="inp !py-1" value="${w.amount}" aria-label="Valor da retirada" onchange="editWd(${b.id},${w.id},'amount',+this.value)"><button class="text-slate-500 hover:text-rose-400 px-1" aria-label="Remover retirada" onclick="delWd(${b.id},${w.id})">✕</button></div><div class="flex justify-between text-slate-400 mt-1"><span>lucro ${brl.format(r.gain)} · IR/IOF - ${brl.format(r.tax)}</span><span>recebido ${brl.format(r.net)}</span></div>${r.taken < w.amount - 0.005 ? '<p class="text-amber-400 mt-1">Saldo insuficiente na data: saíram só ' + brl.format(r.taken) + '.</p>' : ''}</div>`; }).join('');
+    return `<div class="bg-slate-950 border border-slate-800 rounded-xl p-3" style="border-left:4px solid ${COLORS[i % COLORS.length]}">
+      <div class="flex items-center justify-between gap-2 mb-1">
+        <b class="truncate">${esc(b.name)}</b>${t.g > 0.005 ? FLAG : ''}
+        <button class="chip ml-auto" onclick="goAdmin(${b.id})">Editar regras</button>
+      </div>
+      <p class="text-xs text-slate-400 mb-2">${ruleText(b)}</p>
+      <div class="grid grid-cols-2 gap-2 text-sm">${cell('Saldo atual', brl.format(t.bal), 'text-emerald-400')}${cell('Total aportado', brl.format(t.dep))}${t.wd > 0 ? cell('Total retirado', brl.format(t.wd)) : ''}${cell('Rendimento acumulado', (t.g >= 0 ? '+' : '') + brl.format(t.g), t.g >= 0 ? 'text-emerald-400' : 'text-rose-400')}${cell('Rende por dia útil', '≈ ' + brl.format(t.day))}${cell('IR + IOF se resgatar hoje', '- ' + brl.format(t.tax), 'text-rose-400')}${cell('Líquido se resgatar hoje', brl.format(t.net))}${t.wd > 0 ? cell('IR + IOF já pagos', '- ' + brl.format(t.wdTax), 'text-rose-400') : ''}</div>
+      ${b.limit > 0 ? `<p class="text-xs text-slate-400 mt-2">Saldo atual ${brl.format(t.bal)}: ${brl.format(Math.min(t.bal, b.limit))} a ${b.pct}% e ${brl.format(Math.max(0, t.bal - b.limit))} a ${b.pct2}% do CDI.</p>` : ''}
+      <div class="flex gap-2 mt-3 items-end">
+        <div class="w-2/5"><label class="lbl" for="dd-${b.id}">Data</label><input id="dd-${b.id}" type="date" class="inp" value="${today()}"></div>
+        <div class="flex-1"><label class="lbl" for="da-${b.id}">Valor (R$)</label><input id="da-${b.id}" type="number" min="0" step="0.01" class="inp"></div>
+        <button class="btn" onclick="addDep(${b.id})">Aportar</button>
+      </div>
+      <div class="flex gap-2 mt-2 items-end">
+        <div class="w-2/5"><label class="lbl" for="wd-${b.id}">Data da retirada</label><input id="wd-${b.id}" type="date" class="inp" value="${today()}"></div>
+        <div class="flex-1"><label class="lbl" for="wa-${b.id}">Valor retirado (R$)</label><input id="wa-${b.id}" type="number" min="0" step="0.01" class="inp"></div>
+        <button class="btn !bg-rose-500 hover:!bg-rose-400 !text-white" onclick="addWd(${b.id})">Retirar</button>
+      </div>
+      <p class="text-xs text-slate-500 mt-1">A retirada sai primeiro do dinheiro mais antigo (PEPS), com IR e IOF calculados na data dela.</p>
+      <details class="mt-2" ${openBoxes.has(b.id) ? 'open' : ''} ontoggle="tog(${b.id},this.open)">
+        <summary class="text-xs text-slate-400 cursor-pointer">Aportes (${b.deps.length}) · Retiradas (${(b.wds || []).length})</summary>
+        <div class="divide-slate-800 divide-y">${rows || '<p class="text-xs text-slate-400 py-2">Nenhum aporte ainda.</p>'}${wrows}</div>
+      </details>
+      <button class="text-xs text-slate-500 hover:text-rose-400 mt-2 underline" onclick="clearBox(${b.id})">Apagar aportes e retiradas</button></div>`;
+  }).join('') || '<p class="text-sm text-slate-400">Nenhuma caixinha. Adicione a primeira.</p>';
+}
+function tog(id, o) { o ? openBoxes.add(id) : openBoxes.delete(id); }
+function upd(id, k, v) { const b = S.boxes.find(x => x.id === id); if (b) b[k] = v; save(); renderAll(); }
+function delBox(id) { if (!confirm('Remover esta caixinha e todo o histórico de aportes?')) return; S.boxes = S.boxes.filter(b => b.id !== id); save(); renderAll(); }
+function addBox(x = {}) {
+  const id = Date.now() + Math.floor(Math.random() * 1000); openBoxes.add(id);
+  S.boxes.push({id, name:'Nova caixinha', pct:100, limit:0, pct2:100, until:'', pctAfter:100, tax:'reg', deps:[], wds:[], ...x});
+  save(); renderAll(); return id;
+}
+const PRESETS = {
+  mp:['Mercado Pago (120% até R$ 10 mil)', {name:'Mercado Pago', pct:120, limit:10000, pct2:100}],
+  nu:['Nubank (115% até R$ 5 mil)', {name:'Nubank', pct:115, limit:5000, pct2:100}],
+  virada:['Cofrinho da Virada (130% até R$ 5 mil, até 11/02/2027)', {name:'Cofrinho da Virada', pct:130, limit:5000, pct2:100, until:'2027-02-11', pctAfter:100}],
+  cdb:['CDB 100% do CDI', {name:'CDB 100% do CDI', pct:100, limit:0, pct2:100}],
+  lci:['LCI/LCA 91% do CDI (isento de IR)', {name:'LCI/LCA 91% do CDI', pct:91, limit:0, pct2:91, tax:'iso'}]};
+function showTab(t, quiet) {
+  $('view-dash').classList.toggle('hidden', t !== 'dash'); $('view-admin').classList.toggle('hidden', t !== 'adm');
+  $('tab-dash').classList.toggle('on', t === 'dash'); $('tab-adm').classList.toggle('on', t === 'adm');
+  if (!quiet) window.scrollTo({top:0});
+  window.dispatchEvent(new Event('resize'));
+}
+function goAdmin(id) { showTab('adm'); setTimeout(() => { const e = document.getElementById('adm-' + id); if (e) e.scrollIntoView({behavior:'smooth', block:'center'}); }, 50); }
+function admAdd() { const id = addBox(); setTimeout(() => { const e = document.querySelector('#adm-' + id + ' input'); if (e) { e.focus(); e.select(); } }, 50); }
+function admPreset() { const p = PRESETS[$('adm-preset').value]; if (p) addBox({...p[1]}); }
+function admMove(id, d) {
+  const i = S.boxes.findIndex(b => b.id === id), j = i + d;
+  if (i < 0 || j < 0 || j >= S.boxes.length) return;
+  [S.boxes[i], S.boxes[j]] = [S.boxes[j], S.boxes[i]]; save(); renderAll();
+}
+function renderAdm() {
+  const el = $('adm-list'); if (!el) return;
+  const f = (l, inner) => `<div><label class="lbl">${l}</label>${inner}</div>`;
+  const ni = (id, k, v, st, extra = '') => `<input class="inp" type="number" min="0" step="${st}" value="${v}" ${extra} onchange="upd(${id},'${k}',+this.value||0)">`;
+  el.innerHTML = S.boxes.map((b, i) => { const t = boxCalc(b);
+    return `<div id="adm-${b.id}" class="bg-slate-950 border border-slate-800 rounded-xl p-3" style="border-left:4px solid ${COLORS[i % COLORS.length]}">
+      <div class="flex flex-wrap gap-2 items-center mb-2">
+        <input class="inp flex-1 min-w-[160px]" aria-label="Nome da caixinha" value="${esc(b.name)}" onchange="upd(${b.id},'name',this.value.trim() || 'Caixinha')">
+        <span class="text-xs text-slate-400 whitespace-nowrap">saldo ${brl.format(t.bal)} · ${b.deps.length} aportes</span>
+        <button class="chip" ${i === 0 ? 'disabled' : ''} onclick="admMove(${b.id},-1)" aria-label="Mover para cima">↑</button>
+        <button class="chip" ${i === S.boxes.length - 1 ? 'disabled' : ''} onclick="admMove(${b.id},1)" aria-label="Mover para baixo">↓</button>
+        <button class="chip hover:text-rose-400" onclick="delBox(${b.id})">Excluir</button>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-6 gap-2">
+        ${f('% CDI até o limite', ni(b.id, 'pct', b.pct, 0.5))}
+        ${f('Limite (R$; 0 = sem limite)', ni(b.id, 'limit', b.limit, 100))}
+        ${f('% CDI acima do limite', ni(b.id, 'pct2', b.pct2 ?? 100, 0.5))}
+        ${f('Promoção até (opcional)', `<input class="inp" type="date" value="${b.until || ''}" onchange="upd(${b.id},'until',this.value)">`)}
+        ${f('% CDI depois da promoção', ni(b.id, 'pctAfter', b.pctAfter ?? 100, 0.5))}
+        ${f('Imposto', `<select class="inp" onchange="upd(${b.id},'tax',this.value)"><option value="reg" ${b.tax !== 'iso' ? 'selected' : ''}>IR regressivo + IOF</option><option value="iso" ${b.tax === 'iso' ? 'selected' : ''}>Isento de IR e IOF</option></select>`)}
+      </div>
+      <p class="text-xs text-slate-500 mt-2">${ruleText(b)}</p></div>`; }).join('') || '<p class="text-sm text-slate-400">Nenhuma caixinha. Crie a primeira abaixo.</p>';
+}
+function addDep(id) {
+  const b = S.boxes.find(x => x.id === id), amount = +$('da-' + id).value, date = $('dd-' + id).value || today();
+  if (!b || !(amount > 0)) { $('da-' + id).focus(); return; }
+  b.deps.push({id:Date.now(), date, amount}); openBoxes.add(id); save(); renderAll(); loadCdiHist();
+}
+function editDep(bid, did, k, v) {
+  const b = S.boxes.find(x => x.id === bid), d = b && b.deps.find(x => x.id === did);
+  if (d && (k === 'date' ? v : v > 0)) { d[k] = v; save(); }
+  renderAll(); loadCdiHist();
+}
+function addWd(id) {
+  const b = S.boxes.find(x => x.id === id), amount = +$('wa-' + id).value, date = $('wd-' + id).value || today();
+  if (!b || !(amount > 0)) { $('wa-' + id).focus(); return; }
+  (b.wds = b.wds || []).push({id:Date.now(), date, amount}); openBoxes.add(id); save(); renderAll();
+}
+function delWd(bid, wid) { const b = S.boxes.find(x => x.id === bid); if (b) b.wds = (b.wds || []).filter(w => w.id !== wid); save(); renderAll(); }
+function editWd(bid, wid, k, v) {
+  const b = S.boxes.find(x => x.id === bid), w = b && (b.wds || []).find(x => x.id === wid);
+  if (w && (k === 'date' ? v : v > 0)) { w[k] = v; save(); }
+  renderAll();
+}
+function clearBox(id) { const b = S.boxes.find(x => x.id === id); if (!b || !confirm('Apagar todos os aportes e retiradas desta caixinha?')) return; b.deps = []; b.wds = []; save(); renderAll(); }
+function resetAll() { if (!confirm('Apagar TODOS os dados deste painel neste aparelho?')) return; try { localStorage.removeItem('inv-v2'); } catch (e) {} location.reload(); }
+function delDep(bid, did) { const b = S.boxes.find(x => x.id === bid); if (b) b.deps = b.deps.filter(d => d.id !== did); save(); renderAll(); }
+
+/* Simulador: IR calculado por aporte, conforme o tempo de cada um */
+function project(b, mon, months) {
+  const t0 = boxCalc(b), end = addDays(today(), months * 30);
+  const items = b.deps.map(d => ({amount:d.amount, start:d.date}));
+  for (let i = 0; i < months; i++) items.push({amount:mon, start:addDays(today(), i * 30)});
+  const res = runLots(items, b, end, b.wds), real = res.real || [];
+  const bal = res.reduce((a, c) => a + c.v, 0), tax = res.reduce((a, c) => a + c.tax, 0), netRem = res.reduce((a, c) => a + c.net, 0), got = real.reduce((a, r) => a + r.net, 0);
+  const invested = t0.dep + mon * months;
+  return {now:t0.bal, invested, bal, tax, net:netRem, gain:netRem + got - invested};
+}
+function simulate() {
+  if ($('s-mon').value === '' && $('s-mth').value === '') { clearSim(); return; }
+  UI.sim = {mon:$('s-mon').value, months:$('s-mth').value}; saveUI();
+  const mon = +$('s-mon').value || 0, months = Math.min(600, Math.max(1, parseInt($('s-mth').value) || 12));
+  if (!S.boxes.length) { $('sim').innerHTML = '<p class="text-slate-400">Adicione uma caixinha para simular.</p>'; return; }
+  const rows = S.boxes.map(b => ({b, ...project(b, mon, months)})).sort((a, c) => c.gain - a.gain);
+  const line = (l, v, c = '') => `<div class="flex justify-between text-slate-400"><span>${l}</span><span class="${c}">${v}</span></div>`;
+  $('sim').innerHTML = `<p class="md:col-span-2 text-xs text-slate-400">Parte do saldo atual de cada caixinha, somando ${brl.format(mon)} por mês durante ${months} meses. Dias passados usam o CDI real; o futuro usa o CDI atual (${num(M.cdi)}% a.a.).</p>` +
+    rows.map((r, i) => `<div class="bg-slate-950 border ${i === 0 ? 'border-emerald-500/50' : 'border-slate-800'} rounded-xl p-3 space-y-1">
+      <div class="flex justify-between font-medium"><span>${esc(r.b.name)}</span>${i === 0 ? '<span class="text-emerald-400 text-xs">maior ganho</span>' : ''}</div>
+      <p class="text-xs text-slate-500">${r.b.pct}%${r.b.limit > 0 ? ' até ' + brl.format(r.b.limit) + ', ' + r.b.pct2 + '% acima' : ' do CDI'}${r.b.until ? ' · promoção até ' + fd(r.b.until) + ', depois ' + (r.b.pctAfter ?? 100) + '%' : ''}</p>
+      ${line('Saldo hoje', brl.format(r.now))}${line('Aportado até o fim', brl.format(r.invested))}${line('Saldo projetado (bruto)', brl.format(r.bal))}${line('IR + IOF no resgate', '- ' + brl.format(r.tax), 'text-rose-400')}
+      <div class="flex justify-between font-bold pt-1 border-t border-slate-800"><span>Total líquido</span><span class="text-emerald-400">${brl.format(r.net)}</span></div>
+      ${line('Ganho líquido no total', '+' + brl.format(r.gain), 'text-emerald-400')}</div>`).join('');
+}
+
+/* DCA de Bitcoin: compras e vendas (custo médio) */
+function addDca() {
+  const v = +$('d-brl').value, price = +$('d-price').value || fxPx('btcBuy'), date = $('d-date').value;
+  if (!(v > 0) || !price || !date) { $('d-brl').focus(); return; }
+  S.dca.push({id:Date.now(), date, brl:v, price}); save();
+  $('d-brl').value = ''; $('d-price').value = ''; renderAll();
+}
+function addSale() {
+  const v = +$('sl-brl').value, price = +$('sl-price').value || fxPx('btcSell'), date = $('sl-date').value;
+  if (!(v > 0) || !price || !date) { $('sl-brl').focus(); return; }
+  S.sales.push({id:Date.now(), date, brl:v, price}); save();
+  $('sl-brl').value = ''; $('sl-price').value = ''; renderAll();
+}
+function clearDca() { if (!S.dca.length && !S.sales.length) return; if (!confirm('Apagar todas as compras e vendas de Bitcoin?')) return; S.dca = []; S.sales = []; save(); renderAll(); }
+function delDca(id) { S.dca = S.dca.filter(x => x.id !== id); save(); renderAll(); }
+function delSale(id) { S.sales = S.sales.filter(x => x.id !== id); save(); renderAll(); }
+function dcaStats() {
+  const ev = [...S.dca.map(x => ({...x, t:'b'})), ...S.sales.map(x => ({...x, t:'s'}))].sort((a, b) => a.date.localeCompare(b.date) || (a.t === 'b' ? -1 : 1));
+  let q = 0, cost = 0, bought = 0, proceeds = 0, real = 0; const byMonth = {}, salesInfo = {};
+  ev.forEach(e => {
+    if (e.t === 'b') { q += e.brl / e.price; cost += e.brl; bought += e.brl; return; }
+    const want = e.brl / e.price, sq = Math.min(q, want), avg = q ? cost / q : 0, c = sq * avg, pr = sq * e.price, g = pr - c, m = e.date.slice(0, 7);
+    q -= sq; cost -= c; proceeds += pr; real += g;
+    byMonth[m] = byMonth[m] || {pr:0, g:0}; byMonth[m].pr += pr; byMonth[m].g += g;
+    salesInfo[e.id] = {pr, g, short:sq < want - 1e-12};
+  });
+  const val = M.btc ? q * btcPx() : 0;
+  let saleTax = 0;
+  Object.values(byMonth).forEach(m => { if (m.g > 0 && (S.btcWhere === 'ext' || m.pr > 35000)) saleTax += m.g * .15; });
+  return {inv:cost, bought, btc:q, avg:q ? cost / q : 0, val, pl:val - cost, plp:cost ? (val - cost) / cost * 100 : 0, real, proceeds, saleTax, salesInfo, life:val + proceeds - bought};
+}
+function btcTax(s) {
+  const gain = Math.max(0, s.val - s.inv);
+  if (S.btcWhere === 'ext') return {tax: gain * .15, note: 'Exterior: 15% sobre o lucro, sem isenção (apuração anual).'};
+  return s.val > 35000 ? {tax: gain * .15, note: 'Brasil: vender mais de R$ 35 mil no mês tributa o lucro em 15%.'} : {tax: 0, note: 'Brasil: vendas até R$ 35 mil no mês têm o lucro isento.'};
+}
+function renderDca() {
+  const s = dcaStats(), t = btcTax(s), cls = s.pl >= 0 ? 'text-emerald-400' : 'text-rose-400', sold = S.sales.length > 0;
+  $('btc-flag').innerHTML = !M.btc ? '' : s.life > 0.005 ? FLAG : s.life < -0.005 ? LOSS : '';
+  $('dca-sum').innerHTML = cell('Investido (custo)', brl.format(s.inv)) + cell('Total atual', M.btc ? brl.format(s.val) : '—', 'text-emerald-400') + cell('Quantidade', num(s.btc, 8) + ' BTC') +
+    cell('Preço médio', s.avg ? brl.format(s.avg) : '—') + cell('Em sats', Math.round(s.btc * 1e8).toLocaleString('pt-BR')) +
+    cell('Resultado bruto', M.btc && s.inv ? (s.pl >= 0 ? '+' : '') + brl.format(s.pl) + ' (' + num(s.plp, 1) + '%)' : '—', cls) +
+    cell('IR se vender tudo hoje', M.btc ? brl.format(t.tax) : '—', 'text-rose-400') + cell('Líquido após IR', M.btc ? brl.format(s.val - t.tax) : '—') + (+UI.fx.btcSell > 0 && !UI.fx.valueApp ? cell('Valor pelo preço de venda do app', brl.format(s.btc * +UI.fx.btcSell)) : '') +
+    (sold ? cell('Total vendido', brl.format(s.proceeds)) + cell('Lucro realizado', (s.real >= 0 ? '+' : '') + brl.format(s.real), s.real >= 0 ? 'text-emerald-400' : 'text-rose-400') + cell('IR estimado nas vendas', '- ' + brl.format(s.saleTax), 'text-rose-400') : '') +
+    `<div class="col-span-2 md:col-span-4 text-xs text-slate-400"><label for="d-where">Onde você compra: </label><select id="d-where" class="inp !w-auto !py-1" onchange="S.btcWhere=this.value;save();renderAll()"><option value="br" ${S.btcWhere === 'br' ? 'selected' : ''}>Corretora no Brasil</option><option value="ext" ${S.btcWhere === 'ext' ? 'selected' : ''}>Corretora no exterior</option></select><p class="mt-1">${t.note} Estimativa simples (custo médio, sem taxas); confirme com a Receita ou um contador.</p></div>`;
+  const evs = [...S.dca.map(x => ({...x, t:'b'})), ...S.sales.map(x => ({...x, t:'s'}))].sort((a, b) => b.date.localeCompare(a.date));
+  $('dca-list').innerHTML = evs.map(x => {
+    if (x.t === 's') { const i = s.salesInfo[x.id] || {g:0, short:false};
+      return `<div class="flex justify-between items-center py-2 gap-2 text-xs"><span class="text-slate-400">${fd(x.date)}</span><span><span class="text-rose-400">Venda</span> ${brl.format(x.brl)} a ${brl.format(x.price)}${i.short ? ' <span class="text-amber-400">(saldo insuficiente)</span>' : ''}</span><span class="${i.g >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${i.g >= 0 ? '+' : ''}${brl.format(i.g)}</span><button class="text-slate-500 hover:text-rose-400" aria-label="Remover venda" onclick="delSale(${x.id})">✕</button></div>`; }
+    const v = M.btc ? x.brl / x.price * btcPx() : 0, p = M.btc ? (v / x.brl - 1) * 100 : 0;
+    return `<div class="flex justify-between items-center py-2 gap-2 text-xs"><span class="text-slate-400">${fd(x.date)}</span><span>${brl.format(x.brl)} a ${brl.format(x.price)}</span><span class="${p >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${M.btc ? brl.format(v) + ' (' + (p >= 0 ? '+' : '') + num(p, 1) + '%)' : ''}</span><button class="text-slate-500 hover:text-rose-400" aria-label="Remover compra" onclick="delDca(${x.id})">✕</button></div>`;
+  }).join('') || '<p class="py-2 text-slate-400">Nenhuma compra registrada. Adicione a primeira acima.</p>';
+}
+
+/* Distribuição e total */
+const pie = new Chart($('pie'), {type:'doughnut', data:{labels:[], datasets:[{data:[], backgroundColor:[], borderColor:'#0f172a'}]},
+  options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{boxWidth:10, font:{size:11}}}, tooltip:{callbacks:{label:c => c.label + ': ' + brl.format(c.parsed)}}}}});
+const gainChart = new Chart($('gainChart'), {type:'bar', data:{labels:[], datasets:[{data:[], backgroundColor:[], borderRadius:4}]},
+  options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c => (c.parsed.x >= 0 ? 'Ganho: ' : 'Perda: ') + brl.format(c.parsed.x)}}},
+    scales:{x:{grid:{color:'#1e293b'}, ticks:{maxTicksLimit:4, callback:v => brl.format(v)}}, y:{grid:{display:false}}}}});
+function renderPie() {
+  const s = dcaStats(), calcs = S.boxes.map(boxCalc), labels = S.boxes.map(b => b.name), data = calcs.map(t => t.bal);
+  const cols = S.boxes.map((_, i) => COLORS[i % COLORS.length]);
+  if (s.val > 0) { labels.push('Bitcoin'); data.push(s.val); cols.push('#f59e0b'); }
+  pie.data.labels = labels; pie.data.datasets[0].data = data; pie.data.datasets[0].backgroundColor = cols; pie.update();
+  /* Patrimônio total e ganho/perda de toda a vida (inclui o que já foi retirado) */
+  const total = data.reduce((a, b) => a + b, 0), dep = calcs.reduce((a, t) => a + t.dep, 0) + (M.btc ? s.bought : 0), gain = calcs.reduce((a, t) => a + t.g, 0) + (M.btc ? s.life : 0);
+  const col = !dep ? '' : gain >= 0 ? 'text-emerald-400' : 'text-rose-400';
+  $('m-total').textContent = brl.format(total); $('m-total').className = 'text-base ' + col;
+  $('m-gain').textContent = dep ? (gain >= 0 ? '+' : '') + brl.format(gain) + ' (' + (gain >= 0 ? '+' : '') + num(gain / dep * 100, 2) + '%)' : '';
+  $('m-gain').className = 'block text-xs ' + col;
+  /* Ganhos e perdas por ativo */
+  const items = S.boxes.map((b, k) => ({n:b.name, v:calcs[k].g}));
+  if (M.btc && s.bought) items.push({n:'Bitcoin', v:s.life});
+  const bar = (el, list, up) => {
+    if (!list.length) { el.className = 'hidden'; el.innerHTML = ''; return; }
+    const c = up ? 'emerald' : 'rose';
+    el.className = `flex items-center gap-2 mb-1.5 px-3 py-1 rounded-xl border border-${c}-500/30 bg-${c}-500/10 text-xs sm:text-sm text-${c}-400`;
+    el.innerHTML = `<span class="relative flex h-3 w-3 shrink-0"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-${c}-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-${c}-500"></span></span><span>${up ? '▲ Em lucro' : '▼ Em prejuízo'}: ` + list.map(w => esc(w.n) + ' (' + (up ? '+' : '') + brl.format(w.v) + ')').join(' · ') + '</span>';
+  };
+  bar($('profit-flag'), items.filter(x => x.v > 0.005), true);
+  bar($('loss-flag'), items.filter(x => x.v < -0.005), false);
+  gainChart.data.labels = items.map(x => x.n);
+  gainChart.data.datasets[0].data = items.map(x => x.v);
+  gainChart.data.datasets[0].backgroundColor = items.map(x => x.v >= 0 ? '#10b981' : '#f43f5e');
+  gainChart.update();
+}
+const histChart = new Chart($('histChart'), {type:'line', data:{labels:[], datasets:[
+  {label:'Capital investido (aportes − retiradas)', data:[], borderColor:'#6366f1', backgroundColor:'rgba(99,102,241,.1)', fill:true, stepped:true, pointRadius:0, borderWidth:2},
+  {label:'Valor atual', data:[], borderColor:'#10b981', backgroundColor:'#10b981', pointRadius:6, showLine:false}]},
+  options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{boxWidth:10}}, tooltip:{callbacks:{label:c => c.dataset.label + ': ' + brl.format(c.parsed.y)}}},
+    scales:{x:{grid:{color:'#1e293b'}, ticks:{maxTicksLimit:6}}, y:{grid:{color:'#1e293b'}, ticks:{callback:v => brl.format(v)}}}}});
+/* Simulador de Bitcoin e ações */
+const ASSETS = {BTC:'Bitcoin (BTC)', BBAS3:'Banco do Brasil (BBAS3)', PETR4:'Petrobras (PETR4)', CPFE3:'CPFL Energia (CPFE3)', MGLU3:'Magazine Luiza (MGLU3)', VALE3:'Vale (VALE3)', ITUB4:'Itaú Unibanco (ITUB4)', WEGE3:'WEG (WEGE3)', BBDC4:'Bradesco (BBDC4)', ABEV3:'Ambev (ABEV3)', TAEE11:'Taesa (TAEE11)'};
+const FREE = ['PETR4', 'MGLU3', 'VALE3', 'ITUB4'];
+UI.sim2 = UI.sim2 || {asset:'BTC'};
+const assetChart = new Chart($('assetChart'), {type:'line', data:{labels:[], datasets:[
+  {label:'Total aportado', data:[], borderColor:'#6366f1', backgroundColor:'rgba(99,102,241,.1)', fill:true, pointRadius:0, borderWidth:2},
+  {label:'Valor projetado', data:[], borderColor:'#10b981', pointRadius:0, borderWidth:2, tension:.25}]},
+  options:{responsive:true, maintainAspectRatio:false, interaction:{intersect:false, mode:'index'}, plugins:{legend:{labels:{boxWidth:10}}, tooltip:{callbacks:{label:c => c.dataset.label + ': ' + brl.format(c.parsed.y)}}},
+    scales:{x:{grid:{color:'#1e293b'}, ticks:{maxTicksLimit:8}}, y:{grid:{color:'#1e293b'}, ticks:{callback:v => brl.format(v)}}}}});
+function assetCalc(p) {
+  const g = Math.pow(1 + p.ret / 100, 1 / 12) - 1, d = Math.pow(1 + p.dy / 100, 1 / 12) - 1;
+  let qty = 0, price = p.price, inv = 0; const invS = [], valS = [];
+  for (let i = 0; i < p.months; i++) {
+    qty += p.mon / price; inv += p.mon; price *= 1 + g; qty *= 1 + d;
+    invS.push(inv); valS.push(qty * price);
+  }
+  const value = qty * price, gain = value - inv;
+  let tax = 0;
+  if (gain > 0) tax = p.asset === 'BTC' ? (S.btcWhere === 'ext' || value > 35000 ? gain * .15 : 0) : (value > 20000 ? gain * .15 : 0);
+  return {qty, price, inv, value, gain, tax, net:value - tax, invS, valS};
+}
+function assetSim() {
+  const p = {asset:$('a-asset').value, price:+$('a-price').value, mon:+$('a-mon').value || 0, months:Math.min(600, Math.max(1, parseInt($('a-mth').value) || 12)), ret:Math.max(-99, +$('a-ret').value || 0), dy:Math.max(0, +$('a-dy').value || 0)};
+  UI.sim2 = {...UI.sim2, asset:p.asset, price:$('a-price').value, mon:$('a-mon').value, mth:$('a-mth').value, ret:$('a-ret').value, dy:$('a-dy').value}; saveUI();
+  if (!(p.price > 0)) {
+    $('a-out').innerHTML = '<p class="text-sm text-slate-400">Informe a cotação do ativo ou use Atualizar cotação.</p>';
+    assetChart.data.labels = []; assetChart.data.datasets.forEach(d => d.data = []); assetChart.update(); return;
+  }
+  const r = assetCalc(p), btc = p.asset === 'BTC', col = v => v >= 0 ? 'text-emerald-400' : 'text-rose-400';
+  const sc = [['Pessimista (−10 p.p.)', p.ret - 10], ['Base', p.ret], ['Otimista (+10 p.p.)', p.ret + 10]].map(([n, x]) => { const c = assetCalc({...p, ret:Math.max(-99, x)}); return {n, x, net:c.net, g:c.net - c.inv}; });
+  $('a-out').innerHTML = `<div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">${cell('Total aportado', brl.format(r.inv))}${cell('Quantidade acumulada', num(r.qty, btc ? 8 : 2) + (btc ? ' BTC' : ' ações'))}${cell('Preço projetado', brl.format(r.price))}${cell('Valor projetado', brl.format(r.value), 'text-emerald-400')}${cell('Ganho bruto', (r.gain >= 0 ? '+' : '') + brl.format(r.gain), col(r.gain))}${cell('IR estimado', '- ' + brl.format(r.tax), 'text-rose-400')}${cell('Líquido após IR', brl.format(r.net))}${cell('Rentabilidade líquida', r.inv ? num((r.net / r.inv - 1) * 100, 1) + '%' : '—', col(r.net - r.inv))}</div>
+    <div class="grid sm:grid-cols-3 gap-2 mt-3 text-xs">${sc.map(x => `<div class="bg-slate-900 border border-slate-800 rounded-lg p-2"><span class="lbl !mb-0">${x.n}: ${num(x.x, 1)}% a.a.</span><b class="${col(x.g)}">${brl.format(x.net)} (${x.g >= 0 ? '+' : ''}${brl.format(x.g)})</b></div>`).join('')}</div>`;
+  assetChart.data.labels = r.invS.map((_, i) => 'Mês ' + (i + 1));
+  assetChart.data.datasets[0].data = r.invS; assetChart.data.datasets[1].data = r.valS; assetChart.update();
+}
+async function fetchQuote() {
+  const t = $('a-asset').value, st = $('a-status');
+  if (t === 'BTC') { if (M.btc) { $('a-price').value = M.btc.toFixed(2); st.textContent = 'Cotação ao vivo do Bitcoin.'; } else st.textContent = 'Cotação do Bitcoin ainda não carregou.'; assetSim(); return; }
+  const c = UI.q && UI.q[t];
+  if (c && Date.now() - c.at < 30 * 60e3) { $('a-price').value = c.p; UI.sim2.manual = false; st.textContent = t + ': ' + brl.format(c.p) + ' (brapi)'; assetSim(); return; }
+  st.textContent = 'Buscando cotação...';
+  try {
+    const d = await getJson('https://brapi.dev/api/quote/' + t + (UI.brapi ? '?token=' + encodeURIComponent(UI.brapi) : ''));
+    const px = d.results[0].regularMarketPrice;
+    if (!(px > 0)) throw new Error('sem preço');
+    $('a-price').value = px; UI.sim2.manual = false; st.textContent = t + ': ' + brl.format(px) + ' (brapi)';
+  } catch (e) { st.textContent = 'Não consegui a cotação de ' + t + '. Digite o preço' + (FREE.includes(t) ? '.' : ' ou informe seu token da brapi.'); }
+  assetSim();
+}
+function onAsset() {
+  UI.sim2.manual = false; const btc = $('a-asset').value === 'BTC';
+  $('a-dy').disabled = btc; if (btc) $('a-dy').value = 0;
+  $('a-price').value = ''; fetchQuote();
+}
+function syncBtcPrice() { if ($('a-asset').value === 'BTC' && M.btc && !UI.sim2.manual) { $('a-price').value = M.btc.toFixed(2); assetSim(); } }
+function clearAsset() {
+  ['mon', 'mth', 'ret', 'dy', 'price'].forEach(k => $('a-' + k).value = '');
+  UI.sim2 = {asset:$('a-asset').value, manual:false}; saveUI(); $('a-status').textContent = ''; assetSim();
+}
+/* Cotações da bolsa e links de compra */
+const BROKERS = {none:['Escolha sua corretora', ''], xp:['XP Investimentos', 'https://www.xpi.com.br'], btg:['BTG Pactual', 'https://www.btgpactual.com'], rico:['Rico', 'https://www.rico.com.vc'], clear:['Clear', 'https://www.clear.com.br'], inter:['Inter', 'https://inter.co'], nu:['Nubank', 'https://nubank.com.br'], bb:['Banco do Brasil', 'https://www.bb.com.br'], itau:['Itaú', 'https://www.itau.com.br'], custom:['Outra (digitar endereço)', '']};
+const EXCH = {none:['Escolha a exchange', ''], mb:['Mercado Bitcoin', 'https://www.mercadobitcoin.com.br'], binance:['Binance', 'https://www.binance.com/pt-BR'], fox:['Foxbit', 'https://foxbit.com.br']};
+UI.q = UI.q || {};
+const safeUrl = u => { try { const x = new URL(u); return x.protocol === 'https:' ? x.href : ''; } catch (e) { return ''; } };
+const brokerUrl = () => UI.bk === 'custom' ? safeUrl(UI.bu || '') : (BROKERS[UI.bk] ? BROKERS[UI.bk][1] : '');
+const exchUrl = () => EXCH[UI.ex] ? EXCH[UI.ex][1] : '';
+const buyBtn = url => url ? `<a class="chip" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Comprar</a>` : '<span class="text-xs text-slate-500">escolha acima</span>';
+function setBroker() {
+  UI.bk = $('b-broker').value; UI.bu = $('b-url').value.trim(); UI.ex = $('b-exch').value; saveUI();
+  $('b-custom-wrap').classList.toggle('hidden', UI.bk !== 'custom'); renderQuotes();
+}
+function addWatch() {
+  const t = $('q-add').value.trim().toUpperCase();
+  if (!/^[A-Z]{4}\d{1,2}$/.test(t)) { $('q-add').focus(); return; }
+  UI.watch = UI.watch || [];
+  if (!ASSETS[t] && !UI.watch.includes(t)) UI.watch.push(t);
+  if (![...$('a-asset').options].some(o => o.value === t)) $('a-asset').add(new Option(t, t));
+  saveUI(); $('q-add').value = ''; loadQuotes();
+}
+function delWatch(t) { UI.watch = (UI.watch || []).filter(x => x !== t); saveUI(); renderQuotes(); }
+function pickAsset(t) { $('a-asset').value = t; onAsset(); $('a-asset').scrollIntoView({behavior:'smooth', block:'center'}); }
+async function loadQuotes() {
+  const tk = Object.keys(ASSETS).filter(k => k !== 'BTC').concat(UI.watch || []).filter(t => UI.brapi || FREE.includes(t));
+  $('q-note').textContent = 'Buscando cotações...';
+  const tok = UI.brapi ? '?token=' + encodeURIComponent(UI.brapi) : '';
+  const res = await Promise.allSettled(tk.map(t => getJson('https://brapi.dev/api/quote/' + t + tok).then(d => ({t, r:d.results[0]}))));
+  let ok = 0;
+  res.forEach(x => { if (x.status === 'fulfilled' && x.value.r.regularMarketPrice > 0) { ok++; UI.q[x.value.t] = {p:x.value.r.regularMarketPrice, c:x.value.r.regularMarketChangePercent, at:Date.now()}; } });
+  if (ok) UI.qAt = Date.now();
+  saveUI(); renderQuotes();
+  if (!ok) $('q-note').textContent = 'Não consegui buscar as cotações agora (limite do serviço ou sem conexão). Tente de novo em alguns minutos.';
+}
+function renderQuotes() {
+  const bu = brokerUrl(), tk = Object.keys(ASSETS).filter(k => k !== 'BTC').concat(UI.watch || []);
+  const chg = c => c == null ? '' : `<span class="${c >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${c >= 0 ? '▲ +' : '▼ '}${num(c)}%</span>`;
+  const row = (name, price, c, t, buy, extra = '') => `<tr class="border-t border-slate-800"><td class="py-2 pr-3 font-medium whitespace-nowrap">${name}${extra}</td><td class="pr-3 whitespace-nowrap">${price}</td><td class="pr-3 whitespace-nowrap">${chg(c)}</td><td class="pr-3"><button class="chip" onclick="pickAsset('${t}')">Simular</button></td><td>${buy}</td></tr>`;
+  let h = row('Bitcoin', M.btc ? brl.format(M.btc) : '—', M.chg, 'BTC', buyBtn(exchUrl()), ' <span class="text-xs text-slate-500">ao vivo</span>');
+  tk.forEach(t => {
+    const q = UI.q[t], need = !q && !UI.brapi && !FREE.includes(t);
+    h += row(siLink(t), q ? brl.format(q.p) : '—', q ? q.c : null, t, buyBtn(bu),
+      need ? ' <span class="text-xs text-slate-500">precisa de token</span>' : (UI.watch || []).includes(t) ? ` <button class="text-slate-500 hover:text-rose-400" aria-label="Remover ${t}" onclick="delWatch('${t}')">✕</button>` : '');
+  });
+  $('q-table').innerHTML = `<table class="w-full text-left"><thead><tr class="text-xs text-slate-400"><th class="pb-1">Ativo</th><th>Cotação</th><th>Dia</th><th>Simulador</th><th>Compra</th></tr></thead><tbody>${h}</tbody></table>`;
+  $('q-note').textContent = UI.qAt ? 'Ações com atraso de cerca de 15 a 30 min. Última busca às ' + new Date(UI.qAt).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) + (UI.brapi ? '.' : '. Sem token, só PETR4, MGLU3, VALE3 e ITUB4 carregam.') : 'Clique em Atualizar cotações.';
+}
+/* Mercado ao vivo: widgets do TradingView */
+function tvAdd(el, src, cfg) {
+  const d = document.createElement('div'); d.className = 'tradingview-widget-container'; d.style.height = '100%';
+  const w = document.createElement('div'); w.className = 'tradingview-widget-container__widget'; w.style.height = '100%';
+  const sc = document.createElement('script'); sc.src = 'https://s3.tradingview.com/external-embedding/' + src; sc.async = true; sc.text = JSON.stringify(cfg);
+  d.append(w, sc); $(el).append(d);
+}
+function loadTV() {
+  const th = document.documentElement.classList.contains('light') ? 'light' : 'dark';
+  $('tv-tape').innerHTML = ''; $('tv-chart').innerHTML = ''; $('tv-tape').style.height = '76px'; $('tv-chart').style.height = '520px';
+  const sy = Object.keys(ASSETS).filter(k => k !== 'BTC').concat(UI.watch || []).map(t => ({proName:'BMFBOVESPA:' + t, title:t}));
+  tvAdd('tv-tape', 'embed-widget-ticker-tape.js', {symbols:[{proName:'BMFBOVESPA:IBOV', title:'Ibovespa'}, {proName:'FX_IDC:USDBRL', title:'Dólar'}, {proName:'BITSTAMP:BTCUSD', title:'Bitcoin'}, ...sy], colorTheme:th, locale:'br', displayMode:'adaptive', isTransparent:true});
+  tvAdd('tv-chart', 'embed-widget-advanced-chart.js', {autosize:true, symbol:'BMFBOVESPA:PETR4', interval:'D', timezone:'America/Sao_Paulo', theme:th, style:'1', locale:'br', allow_symbol_change:true, support_host:'https://www.tradingview.com'});
+  UI.tv = true; saveUI(); $('tv-btn').textContent = 'Recarregar';
+}
+const siLink = t => `<a class="underline decoration-dotted" href="https://statusinvest.com.br/${/11$/.test(t) && !ASSETS[t] ? 'fundos-imobiliarios' : 'acoes'}/${t.toLowerCase()}" target="_blank" rel="noopener noreferrer" title="Ver detalhes no Status Invest">${esc(ASSETS[t] || t)}</a>`;
+/* Comparador de renda fixa */
+const OPTS = [
+  {id:'tselic', n:'Tesouro Selic', k:'Selic + (% a.a.)', v:.1, tipo:'selic', custo:.2, ir:1},
+  {id:'tipca', n:'Tesouro IPCA+', k:'IPCA + (% a.a.)', v:7.5, tipo:'ipca', custo:.2, ir:1},
+  {id:'cdb', n:'CDB', k:'% do CDI', v:100, tipo:'cdi', custo:0, ir:1},
+  {id:'lci', n:'LCI/LCA', k:'% do CDI', v:91, tipo:'cdi', custo:0, ir:0},
+  {id:'poup', n:'Poupança', k:'', v:0, tipo:'poup', custo:0, ir:0}];
+UI.cmp = UI.cmp || {init:10000, mon:500, mth:12, meta:'', v:{}};
+UI.cmp.v = UI.cmp.v || {};
+const optV = o => +(UI.cmp.v[o.id] ?? o.v);
+function optRate(o) {
+  if (o.tipo === 'cdi') return M.cdi / 100 * optV(o) / 100;
+  if (o.tipo === 'selic') return M.selic / 100 + optV(o) / 100;
+  if (o.tipo === 'ipca') return (1 + (M.ipca ?? 4.5) / 100) * (1 + optV(o) / 100) - 1;
+  return M.selic > 8.5 ? Math.pow(1.005, 12) - 1 : .7 * M.selic / 100;
+}
+function calcOpt(o, init, mon, months, meta) {
+  const eff = (1 + optRate(o)) * (1 - o.custo / 100) - 1, f = m => Math.pow(1 + eff, m / 12);
+  const irr = m => o.ir ? irRate(m * 30) : 0;
+  let gross = 0, tax = 0, net = 0, K = 0;
+  const add = (amt, m) => { const g = amt * (f(m) - 1), t = g * irr(m); gross += g; tax += t; return amt + g - t; };
+  const initNet = add(init, months); net += initNet;
+  for (let i = 0; i < months; i++) { net += add(mon, months - i); K += 1 + (f(months - i) - 1) * (1 - irr(months - i)); }
+  const inv = init + mon * months;
+  return {eff:optRate(o), inv, gross, tax, net, gain:net - inv, req:meta > 0 && K > 0 ? Math.max(0, (meta - initNet) / K) : null};
+}
+function renderRates() {
+  $('c-rates').innerHTML = OPTS.map(o => o.tipo === 'poup'
+    ? `<div><span class="lbl">${o.n}</span><p class="text-xs text-slate-400 pt-2">0,5% ao mês + TR (regra atual)</p></div>`
+    : `<div><label class="lbl" for="r-${o.id}">${o.n}: ${o.k}</label><input id="r-${o.id}" type="number" step="0.05" class="inp" value="${optV(o)}" onchange="setRate('${o.id}', this.value)"></div>`).join('');
+}
+function setRate(id, v) { UI.cmp.v[id] = +v || 0; saveUI(); compare(); }
+function resetRates() { UI.cmp.v = {}; saveUI(); renderRates(); compare(); }
+function clearCmp() {
+  ['init', 'mon', 'mth', 'meta'].forEach(k => $('c-' + k).value = '');
+  UI.cmp = {...UI.cmp, init:'', mon:'', mth:'', meta:''}; saveUI(); compare();
+}
+function compare() {
+  UI.cmp = {...UI.cmp, init:$('c-init').value, mon:$('c-mon').value, mth:$('c-mth').value, meta:$('c-meta').value}; saveUI();
+  const init = +UI.cmp.init || 0, mon = +UI.cmp.mon || 0, months = Math.min(600, Math.max(1, parseInt(UI.cmp.mth) || 12)), meta = +UI.cmp.meta || 0;
+  if (!init && !mon) { $('c-out').innerHTML = '<p class="text-sm text-slate-400">Informe o valor inicial ou o aporte mensal para comparar.</p>'; return; }
+  const rows = OPTS.map(o => ({o, ...calcOpt(o, init, mon, months, meta)})).sort((a, b) => b.net - a.net);
+  $('c-out').innerHTML = `<p class="text-xs text-slate-400 mb-2">Investido: ${brl.format(rows[0].inv)} em ${months} meses (CDI ${num(M.cdi)}%, Selic ${num(M.selic)}%, IPCA ${M.ipca != null ? num(M.ipca) + '%' : 'indisponível, usando 4,50%'} a.a.)</p>
+    <table class="w-full text-left text-sm"><thead><tr class="text-xs text-slate-400"><th class="pb-1">Investimento</th><th>Taxa bruta a.a.</th><th>Total líquido</th><th>Ganho líquido</th><th>IR</th>${meta ? '<th>Aporte mensal p/ a meta</th>' : ''}</tr></thead><tbody>` +
+    rows.map((r, i) => `<tr class="border-t border-slate-800"><td class="py-2 pr-3 font-medium whitespace-nowrap">${r.o.n}${i === 0 ? ' <span class="text-xs text-emerald-400">melhor</span>' : ''}</td><td class="pr-3 whitespace-nowrap">${num(r.eff * 100)}%</td><td class="pr-3 whitespace-nowrap">${brl.format(r.net)}</td><td class="pr-3 whitespace-nowrap text-emerald-400">+${brl.format(r.gain)} (${r.inv ? num(r.gain / r.inv * 100, 1) : '0,0'}%)</td><td class="pr-3 whitespace-nowrap text-rose-400">- ${brl.format(r.tax)}</td>${meta ? `<td class="whitespace-nowrap">${brl.format(r.req)}</td>` : ''}</tr>`).join('') + '</tbody></table>';
+}
+/* Dólar e Bitcoin: referência x preço do app */
+const r4 = v => 'R$ ' + num(v, 4);
+const pctS = v => (v >= 0 ? '+' : '') + num(v, 2) + '%';
+function ago(ms) { if (!ms) return ''; const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'agora' : m < 90 ? 'há ' + m + ' min' : m < 2880 ? 'há ' + Math.round(m / 60) + ' h' : 'há ' + Math.round(m / 1440) + ' dias'; }
+function saveFx() {
+  UI.fx = {usdBuy:$('fx-usdbuy').value, usdSell:$('fx-usdsell').value, btcBuy:$('fx-btcbuy').value, btcSell:$('fx-btcsell').value, useApp:$('fx-use').checked, valueApp:$('fx-val').checked};
+  saveUI(); renderFx(); renderAll();
+}
+function renderFx() {
+  const f = UI.fx, col = v => v >= 0 ? 'text-emerald-400' : 'text-rose-400';
+  $('fx-usd').innerHTML = M.usdAsk
+    ? cell('Compra (bid)', r4(M.usd)) + cell('Venda (ask)', r4(M.usdAsk)) + cell('Máxima / mínima do dia', r4(M.usdHi) + ' / ' + r4(M.usdLo)) + cell('Variação do dia', pctS(M.usdPct), col(M.usdPct)) +
+      cell('Diferença compra × venda', num((M.usdAsk - M.usd) / M.usd * 100, 3) + '%') + cell('Última cotação', M.usdAt ? ago(M.usdAt) : '—') +
+      (M.usdTur ? cell('Dólar turismo (venda)', r4(M.usdTur.ask)) : '') +
+      (M.usdAt && Date.now() - M.usdAt > 3 * 3600e3 ? '<p class="col-span-2 text-xs text-amber-400">Câmbio parado: mercado fechado ou fim de semana.</p>' : '')
+    : '<p class="col-span-2 text-xs text-slate-400">Aguardando a cotação do dólar...</p>';
+  $('fx-btc').innerHTML = M.btc
+    ? cell('Referência (CoinGecko)', brl.format(M.btc)) + cell('Variação em 24h', M.chg != null ? pctS(M.chg) : '—', M.chg != null ? col(M.chg) : '') +
+      (M.btcAsk ? cell('AwesomeAPI: compra', brl.format(M.btcBid)) + cell('AwesomeAPI: venda', brl.format(M.btcAsk)) : '')
+    : '<p class="col-span-2 text-xs text-slate-400">Aguardando a cotação do Bitcoin...</p>';
+  const cmpFx = (nome, buy, sell, refAsk, refBid) => {
+    if (!(buy > 0) && !(sell > 0)) return '';
+    const parts = [];
+    if (buy > 0 && refAsk) parts.push(`comprar no app custa <b class="text-rose-400">${pctS((buy / refAsk - 1) * 100)}</b> em relação ao mercado`);
+    if (sell > 0 && refBid) parts.push(`vender no app paga <b class="text-rose-400">${pctS((sell / refBid - 1) * 100)}</b> em relação ao mercado`);
+    if (buy > 0 && sell > 0) parts.push(`comprar e vender de volta no app perde cerca de <b>${num((1 - sell / buy) * 100, 2)}%</b>`);
+    return `<div class="bg-slate-900 border border-slate-800 rounded-lg p-2"><span class="lbl !mb-0">${nome}</span><p>${parts.join('; ')}.</p></div>`;
+  };
+  $('fx-out').innerHTML = cmpFx('Dólar', +f.usdBuy, +f.usdSell, M.usdAsk, M.usd) + cmpFx('Bitcoin', +f.btcBuy, +f.btcSell, M.btc, M.btc) || '<p class="text-xs text-slate-400 md:col-span-2">Digite os preços do seu app para ver a diferença em relação ao mercado.</p>';
+}
+/* Outras moedas e conversor */
+const CUR = {USD:'Dólar americano', EUR:'Euro', GBP:'Libra esterlina', ARS:'Peso argentino', CAD:'Dólar canadense', CHF:'Franco suíço', JPY:'Iene japonês'};
+const curQ = c => c === 'USD' ? (M.usdAsk ? {bid:M.usd, ask:M.usdAsk, pct:M.usdPct, at:M.usdAt} : null) : (M.fxs && M.fxs[c]) || null;
+const rN = v => 'R$ ' + num(v, v < 0.1 ? 5 : 4);
+function renderCur() {
+  $('fx-table').innerHTML = '<table class="w-full text-left"><thead><tr class="text-xs text-slate-400"><th class="pb-1">Moeda</th><th>Compra (bid)</th><th>Venda (ask)</th><th>Dia</th><th>Última cotação</th></tr></thead><tbody>' +
+    Object.keys(CUR).map(c => { const q = curQ(c);
+      return `<tr class="border-t border-slate-800"><td class="py-2 pr-3 font-medium whitespace-nowrap">${CUR[c]} <span class="text-xs text-slate-500">${c}</span></td><td class="pr-3 whitespace-nowrap">${q ? rN(q.bid) : '—'}</td><td class="pr-3 whitespace-nowrap">${q ? rN(q.ask) : '—'}</td><td class="pr-3 whitespace-nowrap ${q && q.pct >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${q && !isNaN(q.pct) ? pctS(q.pct) : ''}</td><td class="whitespace-nowrap text-slate-400">${q && q.at ? ago(q.at) : ''}</td></tr>`; }).join('') + '</tbody></table>';
+  convert();
+}
+function convert() {
+  const cur = $('cv-cur').value || 'EUR', q = curQ(cur), out = $('cv-out'), mode = UI.cv.mode === 'amt' ? 'amt' : 'brl';
+  UI.cv = {...UI.cv, brl:$('cv-brl').value, amt:$('cv-amt').value, cur, spread:$('cv-spread').value, iof:$('cv-iof').value, mode}; saveUI();
+  if (!q) { out.innerHTML = '<p class="text-slate-400">Aguardando a cotação...</p>'; return; }
+  const sp = (+UI.cv.spread || 0) / 100, io = (+UI.cv.iof || 0) / 100, rate = q.ask * (1 + sp) * (1 + io), brl0 = +UI.cv.brl, amt = +UI.cv.amt;
+  const extra = `Cotação efetiva: ${rN(rate)} por unidade, ${num((rate / q.ask - 1) * 100, 2)}% acima da venda do mercado (${rN(q.ask)}).`;
+  /* o campo editado por último manda; o outro é preenchido sozinho */
+  if (mode === 'amt') {
+    if (!(amt > 0)) { $('cv-brl').value = ''; out.innerHTML = '<p class="text-slate-400">Digite quanto você quer comprar na moeda.</p>'; return; }
+    $('cv-brl').value = (amt * rate).toFixed(2);
+    out.innerHTML = `<p>Para comprar <b>${num(amt)} ${cur}</b> você paga cerca de <b class="text-emerald-400">${brl.format(amt * rate)}</b>. ${extra}</p>`;
+  } else {
+    if (!(brl0 > 0)) { $('cv-amt').value = ''; out.innerHTML = '<p class="text-slate-400">Digite quanto você tem em reais ou quanto quer comprar na moeda.</p>'; return; }
+    $('cv-amt').value = (brl0 / rate).toFixed(2);
+    out.innerHTML = `<p>Com <b>${brl.format(brl0)}</b> você compra cerca de <b class="text-emerald-400">${num(brl0 / rate)} ${cur}</b>. ${extra} Sem spread e IOF seriam ${num(brl0 / q.ask)} ${cur}.</p>`;
+  }
+}
+function clearConv() { ['brl', 'amt', 'spread', 'iof'].forEach(k => $('cv-' + k).value = ''); UI.cv = {cur:$('cv-cur').value, mode:'brl'}; saveUI(); convert(); }
+function renderHist() {
+  const ev = [], st = dcaStats(), qtot = S.dca.reduce((a, x) => a + x.brl / x.price, 0);
+  S.boxes.forEach(b => {
+    const t = boxCalc(b);
+    b.deps.forEach(d => ev.push({date:d.date, tipo:b.name, amount:d.amount, gain:t.items[d.id].g, k:'d'}));
+    (b.wds || []).forEach(w => { const r = t.wds[w.id]; if (r) ev.push({date:w.date, tipo:b.name + ' (retirada)', amount:r.taken, gain:r.gain, k:'w', net:r.net}); });
+  });
+  S.dca.forEach(x => { const q = x.brl / x.price; ev.push({date:x.date, tipo:'Bitcoin', amount:x.brl, gain:!M.btc ? 0 : S.sales.length ? (qtot ? st.pl * q / qtot : 0) : q * btcPx() - x.brl, k:'d'}); });
+  S.sales.forEach(x => { const i = st.salesInfo[x.id]; if (i) ev.push({date:x.date, tipo:'Bitcoin (venda)', amount:i.pr, gain:i.g, k:'w'}); });
+  ev.sort((a, b) => a.date.localeCompare(b.date) || (a.k === 'd' ? -1 : 1));
+  const dep = ev.filter(e => e.k === 'd').reduce((a, e) => a + e.amount, 0), wd = ev.filter(e => e.k === 'w').reduce((a, e) => a + e.amount, 0), gain = ev.reduce((a, e) => a + e.gain, 0);
+  let acc = 0;
+  const line = ev.map(e => (acc += e.k === 'd' ? e.amount : -e.amount));
+  histChart.data.labels = ev.map(e => fd(e.date)).concat('Hoje');
+  histChart.data.datasets[0].data = line.concat(acc);
+  histChart.data.datasets[1].data = ev.map(() => null).concat(dep - wd + gain);
+  histChart.update();
+  $('hist-sum').innerHTML = cell('Total aportado', brl.format(dep)) + cell('Total retirado', brl.format(wd)) + cell('Rendimento', (gain >= 0 ? '+' : '') + brl.format(gain), gain >= 0 ? 'text-emerald-400' : 'text-rose-400') +
+    cell('Rentabilidade', dep ? num(gain / dep * 100, 2) + '%' : '—') + cell('Valor atual', brl.format(dep - wd + gain));
+  $('hist-list').innerHTML = ev.slice().reverse().map(e => `<div class="flex justify-between gap-2 py-2 text-xs"><span class="text-slate-400">${fd(e.date)}</span><span class="flex-1 truncate">${esc(e.tipo)}</span><span class="${e.k === 'w' ? 'text-rose-400' : ''}">${e.k === 'w' ? '- ' : ''}${brl.format(e.amount)}</span><span class="${e.gain >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${e.gain >= 0 ? '+' : ''}${brl.format(e.gain)}</span></div>`).join('') || '<p class="py-2 text-slate-400">Nenhum aporte registrado ainda.</p>';
+}
+function importData() {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/json,.json';
+  inp.onchange = () => {
+    const f = inp.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const d = JSON.parse(r.result);
+        if (!d || !Array.isArray(d.boxes) || !Array.isArray(d.dca)) throw new Error('formato');
+        if (!confirm('Substituir os dados atuais pelos do arquivo?')) return;
+        S = {boxes:d.boxes, dca:d.dca, sales:Array.isArray(d.sales) ? d.sales : [], btcWhere:d.btcWhere || 'br', seed:(d.seed && typeof d.seed === 'object') ? d.seed : {}};
+        S.boxes.forEach(b => { b.deps = Array.isArray(b.deps) ? b.deps : []; b.wds = Array.isArray(b.wds) ? b.wds : []; });
+        save(); location.reload();
+      } catch (e) { alert('Arquivo inválido. Use o arquivo gerado pelo botão Exportar dados.'); }
+    };
+    r.readAsText(f);
+  };
+  inp.click();
+}
+function exportData() {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(S, null, 2)], {type:'application/json'}));
+  a.download = 'meus-investimentos.json'; a.click();
+}
+function renderAll() { renderBoxes(); renderDca(); renderPie(); renderHist(); renderAdm(); }
+
+/* Tema claro/escuro */
+function applyTheme(t) {
+  const l = t === 'light', txt = l ? '#475569' : '#94a3b8', grid = l ? '#e2e8f0' : '#1e293b';
+  document.documentElement.classList.toggle('light', l);
+  Chart.defaults.color = txt;
+  [btcChart, histChart, gainChart, assetChart].forEach(c => ['x','y'].forEach(a => { c.options.scales[a].grid.color = grid; c.options.scales[a].ticks.color = txt; }));
+  pie.options.plugins.legend.labels.color = txt;
+  pie.data.datasets[0].borderColor = l ? '#fff' : '#0f172a';
+  btcChart.update(); pie.update(); histChart.update(); gainChart.update(); assetChart.update();
+  $('theme-btn').textContent = l ? 'Escuro' : 'Claro';
+  document.querySelector('meta[name=theme-color]').content = l ? '#f1f5f9' : '#020617';
+  write('inv-theme', t);
+  if (UI.tv && $('tv-chart').firstChild) loadTV();
+}
+function toggleTheme() { applyTheme(document.documentElement.classList.contains('light') ? 'dark' : 'light'); }
+applyTheme(read('inv-theme', matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
+
+/* PWA: manifesto embutido + service worker (só funciona hospedado em HTTPS) */
+try {
+  const icon = 'data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='#020617'/><text x='50' y='70' font-size='58' text-anchor='middle' fill='#f59e0b'>₿</text></svg>");
+  const mf = {name:'Painel de Investimentos', short_name:'Investimentos', display:'standalone', background_color:'#020617', theme_color:'#020617', start_url:location.href, icons:[{src:icon, sizes:'any', type:'image/svg+xml'}]};
+  const ml = document.createElement('link'); ml.rel = 'manifest';
+  ml.href = URL.createObjectURL(new Blob([JSON.stringify(mf)], {type:'application/manifest+json'}));
+  document.head.appendChild(ml);
+  const ai = document.createElement('link'); ai.rel = 'apple-touch-icon'; ai.href = icon; document.head.appendChild(ai);
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+} catch(e) {}
+
+/* Fundo temático de investimentos (velas, linha de alta, moedas) */
+(function () {
+  let c = '', pts = [];
+  for (let i = 0; i < 26; i++) {
+    const x = 50 + i * 60, base = 800 - i * 20 + Math.sin(i * 1.3) * 45, h = 30 + (i * 53) % 80, col = (i * 7 + 3) % 5 ? '#10b981' : '#f43f5e';
+    pts.push(x + ',' + base.toFixed(0));
+    c += `<line x1='${x}' y1='${base - h * .8}' x2='${x}' y2='${base + h * .8}' stroke='${col}' stroke-width='3'/><rect x='${x - 12}' y='${base - h / 2}' width='24' height='${h}' rx='3' fill='${col}'/>`;
+  }
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 900' preserveAspectRatio='xMidYMax slice'><g opacity='.2'>${c}<polyline points='${pts.join(' ')}' fill='none' stroke='#34d399' stroke-width='5'/></g><g fill='none' stroke='#fbbf24' stroke-width='6' opacity='.14'><circle cx='1320' cy='220' r='110'/><circle cx='300' cy='170' r='70'/></g><g fill='#fbbf24' opacity='.14' font-family='Arial,sans-serif' text-anchor='middle'><text x='1320' y='275' font-size='150'>₿</text><text x='300' y='215' font-size='90'>$</text></g></svg>`;
+  document.documentElement.style.setProperty('--bgimg', `url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
+})();
+/* Seções recolhíveis (estado salvo) */
+function initCollapse() {
+  document.querySelectorAll('.card').forEach((c, i) => {
+    const h = c.querySelector('h2'); if (!h) return;
+    const key = h.textContent.trim().slice(0, 22);
+    const head = h.parentElement === c ? h : h.parentElement, body = [...c.children].filter(x => x !== head);
+    if (head === h) h.classList.add('cap');
+    const btn = document.createElement('button');
+    btn.className = 'chev'; btn.setAttribute('aria-label', 'Recolher ou expandir esta seção'); head.appendChild(btn);
+    const apply = () => { const col = !!UI.collapsed[key]; c.classList.toggle('collapsed', col); body.forEach(x => x.classList.toggle('hidden', col)); btn.textContent = col ? '▸' : '▾'; btn.setAttribute('aria-expanded', String(!col)); };
+    const toggle = () => { UI.collapsed[key] = !UI.collapsed[key]; saveUI(); apply(); window.dispatchEvent(new Event('resize')); };
+    btn.onclick = e => { e.stopPropagation(); toggle(); }; h.onclick = toggle;
+    apply();
+  });
+}
+$('s-mon').value = UI.sim.mon; $('s-mth').value = UI.sim.months;
+$('a-asset').innerHTML = Object.entries(ASSETS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+(UI.watch || []).forEach(t => $('a-asset').add(new Option(t, t)));
+$('b-broker').innerHTML = Object.entries(BROKERS).map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join('');
+$('b-exch').innerHTML = Object.entries(EXCH).map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join('');
+$('b-broker').value = UI.bk || 'none'; $('b-url').value = UI.bu || ''; $('b-exch').value = UI.ex || 'none'; $('b-custom-wrap').classList.toggle('hidden', UI.bk !== 'custom');
+{ const A = UI.sim2; $('a-asset').value = A.asset || 'BTC'; ['mon', 'mth', 'ret', 'dy', 'price'].forEach(k => { if (A[k] != null) $('a-' + k).value = A[k]; });
+  $('a-token').value = UI.brapi || ''; $('a-dy').disabled = $('a-asset').value === 'BTC'; }
+$('c-init').value = UI.cmp.init; $('c-mon').value = UI.cmp.mon; $('c-mth').value = UI.cmp.mth; $('c-meta').value = UI.cmp.meta; renderRates(); compare();
+$('fx-usdbuy').value = UI.fx.usdBuy ?? ''; $('fx-usdsell').value = UI.fx.usdSell ?? ''; $('fx-btcbuy').value = UI.fx.btcBuy ?? ''; $('fx-btcsell').value = UI.fx.btcSell ?? ''; $('fx-use').checked = !!UI.fx.useApp; $('fx-val').checked = !!UI.fx.valueApp;
+$('cv-cur').innerHTML = Object.entries(CUR).map(([k, v]) => `<option value="${k}">${v} (${k})</option>`).join('');
+$('cv-cur').value = UI.cv.cur || 'EUR'; $('cv-brl').value = UI.cv.brl ?? ''; $('cv-amt').value = UI.cv.amt ?? ''; $('cv-spread').value = UI.cv.spread ?? ''; $('cv-iof').value = UI.cv.iof ?? '';
+$('adm-preset').innerHTML = Object.entries(PRESETS).map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join('');
+showTab('dash', true);
+$('ver').textContent = VERSION; applyPin(); initCollapse();
+$('d-date').value = today(); $('sl-date').value = today();
+renderMarket(); renderAll(); renderFx(); renderCur(); simulate();
+renderQuotes(); if (UI.tv) loadTV();
+if (!UI.qAt || Date.now() - UI.qAt > 10 * 60e3) loadQuotes();
+setInterval(() => { if (!document.hidden) loadQuotes(); }, 15 * 60 * 1000);
+if ($('a-asset').value !== 'BTC' && !$('a-price').value) fetchQuote(); else assetSim();
+loadMarket(); loadHistory(); loadCdiHist();
+setInterval(loadMarket, 60000);
+</script>
+</body>
+</html>
